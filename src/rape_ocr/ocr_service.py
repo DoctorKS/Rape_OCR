@@ -8,7 +8,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .domain import FieldResult, OcrJob, PatternConfig
+from .domain import AnchorConfig, BBox, FieldResult, OcrJob, PatternConfig
+
+
+PageText = tuple[str, BBox, float]
 
 
 def _load_cv2():
@@ -25,6 +28,10 @@ class OcrEngine:
 
     def recognize(self, image) -> tuple[str, float]:
         raise NotImplementedError
+
+    def recognize_layout(self, image) -> list[PageText]:
+        text, confidence = self.recognize(image)
+        return [(text, (0.0, 0.0, 1.0, 1.0), confidence)] if text else []
 
 
 class PlaceholderOcrEngine(OcrEngine):
@@ -60,6 +67,15 @@ class PaddleOcrEngine(OcrEngine):
         if not texts:
             return "", 0.0
         return " ".join(texts), sum(scores) / len(scores)
+
+    def recognize_layout(self, image) -> list[PageText]:
+        with _quiet_external_output(enabled=not self.verbose):
+            try:
+                result = self._ocr.predict(image)
+            except AttributeError:
+                result = self._ocr.ocr(image, cls=True)
+        height, width = image.shape[:2] if image is not None else (1, 1)
+        return _extract_page_text_items(result, width, height)
 
 
 @contextlib.contextmanager
@@ -135,6 +151,77 @@ def _extract_ocr_text_scores(result: Any) -> tuple[list[str], list[float]]:
     return texts, scores
 
 
+def _extract_page_text_items(result: Any, width: int, height: int) -> list[PageText]:
+    items: list[PageText] = []
+
+    def normalize_box(box: Any) -> BBox | None:
+        if not isinstance(box, (list, tuple)) or not box:
+            return None
+        try:
+            if len(box) == 4 and all(isinstance(item, (int, float)) for item in box):
+                x1, y1, x2, y2 = (float(item) for item in box)
+            else:
+                xs = [float(point[0]) for point in box]
+                ys = [float(point[1]) for point in box]
+                x1, y1, x2, y2 = min(xs), min(ys), max(xs), max(ys)
+        except Exception:
+            return None
+        return (
+            max(0.0, min(1.0, x1 / width)),
+            max(0.0, min(1.0, y1 / height)),
+            max(0.0, min(1.0, x2 / width)),
+            max(0.0, min(1.0, y2 / height)),
+        )
+
+    def add_item(text: Any, box: Any, score: Any = 0.0) -> None:
+        value = str(text).strip()
+        bbox = normalize_box(box)
+        if value and bbox:
+            try:
+                confidence = float(score)
+            except Exception:
+                confidence = 0.0
+            items.append((value, bbox, confidence))
+
+    def visit(value: Any) -> None:
+        if value is None:
+            return
+        if isinstance(value, dict):
+            texts = value.get("rec_texts") or value.get("texts")
+            boxes = value.get("rec_boxes") or value.get("dt_polys") or value.get("boxes")
+            scores = value.get("rec_scores") or value.get("scores") or []
+            if isinstance(texts, list) and isinstance(boxes, list):
+                for index, text in enumerate(texts):
+                    score = scores[index] if isinstance(scores, list) and index < len(scores) else 0.0
+                    add_item(text, boxes[index], score)
+            if "text" in value and any(key in value for key in ("box", "bbox", "points")):
+                add_item(value["text"], value.get("box") or value.get("bbox") or value.get("points"), value.get("score", 0.0))
+            for item in value.values():
+                if isinstance(item, (dict, list, tuple)):
+                    visit(item)
+            return
+        if hasattr(value, "json"):
+            try:
+                visit(value.json)
+            except Exception:
+                pass
+        if hasattr(value, "res"):
+            try:
+                visit(value.res)
+            except Exception:
+                pass
+        if isinstance(value, (list, tuple)):
+            if len(value) == 2 and isinstance(value[0], (list, tuple)) and isinstance(value[1], (list, tuple)) and len(value[1]) == 2:
+                text, score = value[1]
+                add_item(text, value[0], score)
+                return
+            for item in value:
+                visit(item)
+
+    visit(result)
+    return items
+
+
 def create_ocr_engine(prefer_paddle: bool = True, verbose: bool = False) -> OcrEngine:
     if not prefer_paddle:
         return PlaceholderOcrEngine()
@@ -142,6 +229,54 @@ def create_ocr_engine(prefer_paddle: bool = True, verbose: bool = False) -> OcrE
         return PaddleOcrEngine(verbose=verbose)
     except RuntimeError:
         return PlaceholderOcrEngine()
+
+
+def _find_anchor_item(page_items: list[PageText], anchor: AnchorConfig) -> PageText | None:
+    wanted = [_normalize_anchor_text(text) for text in anchor.texts]
+    for item in page_items:
+        normalized = _normalize_anchor_text(item[0])
+        if any(token and token in normalized for token in wanted):
+            return item
+    return None
+
+
+def _normalize_anchor_text(text: str) -> str:
+    return re.sub(r"[\s:\-_.]+", "", text.strip().lower())
+
+
+def _bbox_from_anchor(anchor_bbox: BBox, anchor: AnchorConfig) -> BBox:
+    left, top, right, bottom = anchor_bbox
+    field_height = anchor.height if anchor.height is not None else max(0.01, bottom - top)
+    if anchor.side == "left":
+        new_right = left - anchor.offset_x + anchor.pad_x
+        new_left = new_right - anchor.width
+    elif anchor.side == "below":
+        new_left = left + anchor.offset_x - anchor.pad_x
+        new_right = new_left + anchor.width + (anchor.pad_x * 2)
+        top = bottom + anchor.offset_y
+        bottom = top + field_height
+        return _clamp_bbox((new_left, top - anchor.pad_y, new_right, bottom + anchor.pad_y))
+    elif anchor.side == "above":
+        new_left = left + anchor.offset_x - anchor.pad_x
+        new_right = new_left + anchor.width + (anchor.pad_x * 2)
+        bottom = top - anchor.offset_y
+        top = bottom - field_height
+        return _clamp_bbox((new_left, top - anchor.pad_y, new_right, bottom + anchor.pad_y))
+    else:
+        new_left = right + anchor.offset_x - anchor.pad_x
+        new_right = new_left + anchor.width + (anchor.pad_x * 2)
+    new_top = top + anchor.offset_y - anchor.pad_y
+    new_bottom = new_top + field_height + (anchor.pad_y * 2)
+    return _clamp_bbox((new_left, new_top, new_right, new_bottom))
+
+
+def _clamp_bbox(bbox: BBox) -> BBox:
+    left, top, right, bottom = bbox
+    left = max(0.0, min(1.0, left))
+    top = max(0.0, min(1.0, top))
+    right = max(left + 0.001, min(1.0, right))
+    bottom = max(top + 0.001, min(1.0, bottom))
+    return left, top, right, bottom
 
 
 class OcrService:
@@ -172,6 +307,7 @@ class OcrService:
         selected_pattern = pattern_name or self.detect_pattern(image_path)
         pattern = self.patterns[selected_pattern]
         skip = skipped_fields or set()
+        page_items = self._recognize_page_layout(image, pattern) if image is not None else []
 
         fields: list[FieldResult] = []
         for config in pattern.fields:
@@ -205,7 +341,13 @@ class OcrService:
                     )
                 )
                 continue
-            crop = self._crop_relative(image, config.bbox, width, height) if image is not None else None
+            crop = (
+                self._crop_from_anchor(image, config.anchor, page_items, width, height)
+                if image is not None and config.anchor is not None
+                else None
+            )
+            if crop is None:
+                crop = self._crop_relative(image, config.bbox, width, height) if image is not None else None
             if config.kind == "checkbox":
                 prediction, confidence = self._detect_checkbox(crop)
                 raw_prediction = prediction
@@ -238,6 +380,28 @@ class OcrService:
         x2 = max(x1 + 1, min(width, round(right * width)))
         y2 = max(y1 + 1, min(height, round(bottom * height)))
         return image[y1:y2, x1:x2]
+
+    def _recognize_page_layout(self, image, pattern: PatternConfig) -> list[PageText]:
+        if not any(field.anchor is not None for field in pattern.fields):
+            return []
+        try:
+            return self.engine.recognize_layout(image)
+        except Exception:
+            return []
+
+    @staticmethod
+    def _crop_from_anchor(
+        image,
+        anchor: AnchorConfig,
+        page_items: list[PageText],
+        width: int,
+        height: int,
+    ):
+        item = _find_anchor_item(page_items, anchor)
+        if item is None:
+            return None
+        bbox = _bbox_from_anchor(item[1], anchor)
+        return OcrService._crop_relative(image, bbox, width, height)
 
     @staticmethod
     def _detect_checkbox(crop) -> tuple[str, float]:

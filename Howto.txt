@@ -246,3 +246,73 @@ Remove-Item -Recurse -LiteralPath "C:\dev\Rape_OCR\data\recycling\rural_rape\202
 
 - `negative` -> `Absence of spermatozoa`
 - `positive` -> `Presence of spermatozoa`
+
+---
+
+## Anchor-Based Crop
+
+บาง field ใช้ anchor-based crop ได้ เช่นหา label `HN` หรือ `ชื่อ` ก่อน แล้ว crop ค่าที่อยู่ด้านขวาของ label นั้น
+
+ตัวอย่าง:
+
+```json
+{
+  "name": "hn",
+  "anchor": {
+    "texts": ["HN", "H.N."],
+    "side": "right",
+    "width": 0.12,
+    "offset_x": 0.005,
+    "pad_y": 0.01
+  },
+  "bbox": [0.08, 0.74, 0.22, 0.81]
+}
+```
+
+ถ้าหา anchor ไม่เจอ ระบบจะ fallback ไปใช้ `bbox` เดิม จึงยังทำงานได้กับรูปที่ OCR label ไม่ติด
+
+---
+
+## Reprocess Dataset เก่าหลังเพิ่ม Anchor
+
+ข้อมูลเก่าที่ review แล้วไม่ต้องลบ และไม่ต้องเริ่มเทรนใหม่จากศูนย์
+
+ให้ reprocess จาก raw image เดิมเพื่อสร้าง metadata/crop evidence ใหม่:
+
+```powershell
+cd C:\dev\Rape_OCR
+.\.venv\Scripts\python.exe -m rape_ocr.main --reprocess-recycling --reprocess-pattern ppk_rape --placeholder-ocr
+```
+
+คำสั่งด้านบนเป็น dry-run:
+
+- ไม่สร้าง entry ใหม่
+- ใช้ตรวจว่ามี metadata กี่รายการ
+- ใช้ตรวจว่า source image ยังอยู่หรือไม่
+
+ถ้าต้องการเขียน entry ใหม่จริง:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --reprocess-recycling --reprocess-pattern ppk_rape --confirm-reprocess
+```
+
+ถ้าต้องการ reprocess แค่ entry เดียว:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --reprocess-recycling --reprocess-entry ppk_rape/20260609T000000Z_jobid --confirm-reprocess
+```
+
+ผลลัพธ์:
+
+- ระบบอ่าน `metadata.json` เก่า
+- หา `copied_image` หรือ `image_path`
+- รัน OCR pipeline ใหม่ รวม anchor-based crop
+- ย้าย reviewed value เดิมกลับไปใส่ field ใหม่
+- สร้าง recycling entry ใหม่
+- ใส่ข้อมูลต้นทางไว้ใน `reprocess.source_metadata`
+
+หมายเหตุ:
+
+- ถ้าไม่ใส่ `--confirm-reprocess` จะไม่เขียนไฟล์ใหม่
+- ถ้าใส่ `--placeholder-ocr` จะไม่โหลด PaddleOCR เหมาะกับการทดสอบ pipeline
+- ถ้าต้องการ OCR จริง ให้ไม่ใส่ `--placeholder-ocr`

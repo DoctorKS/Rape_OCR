@@ -7,6 +7,13 @@
       "name": "patient_name",
       "label": "Patient name",
       "bbox": [0.30, 0.75, 0.56, 0.81],
+      "anchor": {
+        "texts": ["ชื่อ", "ชื่อ-สกุล", "ชื่อ - สกุล"],
+        "side": "right",
+        "width": 0.26,
+        "offset_x": 0.01,
+        "pad_y": 0.01
+      },
       "docx_tag": "patient_name",
       "required": true
     },
@@ -14,6 +21,13 @@
       "name": "age",
       "label": "Age",
       "bbox": [0.54, 0.75, 0.67, 0.81],
+      "anchor": {
+        "texts": ["หญิง", "ชาย"],
+        "side": "right",
+        "width": 0.12,
+        "offset_x": 0.01,
+        "pad_y": 0.01
+      },
       "docx_tag": "age",
       "required": true
     },
@@ -21,6 +35,13 @@
       "name": "hn",
       "label": "HN",
       "bbox": [0.08, 0.74, 0.22, 0.81],
+      "anchor": {
+        "texts": ["HN", "H.N."],
+        "side": "right",
+        "width": 0.12,
+        "offset_x": 0.005,
+        "pad_y": 0.01
+      },
       "docx_tag": "hn",
       "required": true
     },
@@ -38,6 +59,13 @@
       "label": "Collection date",
       "bbox": [0.10, 0.86, 0.30, 0.91],
       "kind": "table_date",
+      "anchor": {
+        "texts": ["วันที่ตรวจ"],
+        "side": "right",
+        "width": 0.18,
+        "offset_x": 0.01,
+        "pad_y": 0.01
+      },
       "docx_tag": "collection_date",
       "required": true
     },
@@ -46,6 +74,13 @@
       "label": "Collection time",
       "bbox": [0.35, 0.85, 0.58, 0.93],
       "kind": "handwriting",
+      "anchor": {
+        "texts": ["เวลาที่ตรวจ"],
+        "side": "right",
+        "width": 0.20,
+        "offset_x": 0.01,
+        "pad_y": 0.02
+      },
       "docx_tag": "collection_time"
     },
     {

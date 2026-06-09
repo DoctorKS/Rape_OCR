@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .api import create_app
 from .config import load_patterns
+from .dataset_reprocess import DatasetReprocessor
 from .ocr_service import OcrService, create_ocr_engine
 from .recycling import RecyclingDataset
 from .storage import AppStorage
@@ -40,6 +41,24 @@ def main() -> int:
         action="store_true",
         help="actually delete recycling entries; without this flag deletion commands are dry-run only",
     )
+    parser.add_argument(
+        "--reprocess-recycling",
+        action="store_true",
+        help="re-run OCR on existing recycling metadata to refresh anchor crop evidence",
+    )
+    parser.add_argument(
+        "--reprocess-pattern",
+        help="limit --reprocess-recycling to one pattern, e.g. ppk_rape",
+    )
+    parser.add_argument(
+        "--reprocess-entry",
+        help="limit --reprocess-recycling to one relative entry path",
+    )
+    parser.add_argument(
+        "--confirm-reprocess",
+        action="store_true",
+        help="write new recycling entries during reprocess; without this flag it is dry-run only",
+    )
     args = parser.parse_args()
 
     if args.cleanup_recycling_days is not None:
@@ -64,6 +83,38 @@ def main() -> int:
         print(f"mode={'dry-run' if result.dry_run else 'delete'}")
         print(f"entry={result.entry_dir}")
         print(f"deleted={result.deleted}")
+        return 0
+
+    if args.reprocess_recycling:
+        patterns = load_patterns()
+        service = OcrService(
+            patterns,
+            create_ocr_engine(
+                prefer_paddle=not args.placeholder_ocr,
+                verbose=args.verbose_ocr,
+            ),
+        )
+        storage = AppStorage(Path("data/app.db"))
+        result = DatasetReprocessor(
+            RecyclingDataset(Path("data/recycling")),
+            service,
+            storage=storage,
+        ).reprocess(
+            pattern_name=args.reprocess_pattern,
+            entry=args.reprocess_entry,
+            dry_run=not args.confirm_reprocess,
+        )
+        print(f"mode={'dry-run' if result.dry_run else 'write'}")
+        print(f"items={len(result.items)}")
+        print(f"processed={result.processed_count}")
+        print(f"skipped={result.skipped_count}")
+        print(f"errors={result.error_count}")
+        for item in result.items:
+            print(
+                f"{item.status} pattern={item.pattern_name} "
+                f"source={item.source_metadata} image={item.image_path} "
+                f"output={item.output_metadata} message={item.message}"
+            )
         return 0
 
     if args.gui:

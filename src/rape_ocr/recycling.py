@@ -24,12 +24,19 @@ class DeleteEntryResult:
     deleted: bool
 
 
+@dataclass(frozen=True)
+class RecyclingEntry:
+    entry_dir: Path
+    metadata_path: Path
+    payload: dict
+
+
 class RecyclingDataset:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def save_reviewed_job(self, job: OcrJob) -> Path:
+    def save_reviewed_job(self, job: OcrJob, extra_metadata: dict | None = None) -> Path:
         timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
         target_dir = self.root / job.pattern_name / f"{timestamp}_{job.id}"
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -41,12 +48,35 @@ class RecyclingDataset:
         payload = job.reviewed_payload()
         payload["recycled_at"] = timestamp
         payload["copied_image"] = str(image_target)
+        if extra_metadata:
+            payload.update(extra_metadata)
         metadata_path = target_dir / "metadata.json"
         metadata_path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return metadata_path
+
+    def iter_entries(self, pattern_name: str | None = None) -> tuple[RecyclingEntry, ...]:
+        if not self.root.exists():
+            return ()
+        entries: list[RecyclingEntry] = []
+        pattern_dirs = [self.root / pattern_name] if pattern_name else sorted(self.root.iterdir())
+        for pattern_dir in pattern_dirs:
+            if not pattern_dir.is_dir():
+                continue
+            for entry_dir in sorted(pattern_dir.iterdir()):
+                if not entry_dir.is_dir():
+                    continue
+                metadata_path = entry_dir / "metadata.json"
+                if not metadata_path.exists():
+                    continue
+                try:
+                    payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    continue
+                entries.append(RecyclingEntry(entry_dir=entry_dir, metadata_path=metadata_path, payload=payload))
+        return tuple(entries)
 
     def cleanup_old_entries(self, older_than_days: int, dry_run: bool = True) -> CleanupResult:
         if older_than_days < 1:

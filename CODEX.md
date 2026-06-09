@@ -108,6 +108,8 @@ dataset promotion ที่ควบคุมได้สำหรับ train, 
 - บันทึกเหตุการณ์ GUI ค้างและ root cause ไว้ที่ `docs/gui_freeze_incident_log.txt`
 - `ppk_rape.hospital` เป็น field ชนิด `constant` และต้องมีค่า `โรงพยาบาลพระปกเกล้า` เสมอ
 - result fields เช่น `vulvar_result`, `vaginal_result`, `endocervical_result` เก็บค่า review เป็น `negative` / `positive` แต่ export ลง DOCX เป็น `Absence of spermatozoa` / `Presence of spermatozoa`
+- Field config รองรับ `anchor`; ให้ใช้ anchor-based crop สำหรับ field ที่มี label ชัด เช่น `HN`, `ชื่อ`, `วันที่ตรวจ` และต้องมี `bbox` เป็น fallback เสมอ
+- Dataset เก่าที่ review แล้วให้ reprocess ด้วย `DatasetReprocessor` หรือ CLI `--reprocess-recycling` เพื่อสร้าง entry ใหม่ที่มี anchor crop evidence โดยไม่ทับ metadata เก่า
 
 ## Review Checklist
 

@@ -11,6 +11,18 @@ BBox = tuple[float, float, float, float]
 
 
 @dataclass(frozen=True)
+class AnchorConfig:
+    texts: tuple[str, ...]
+    side: str = "right"
+    width: float = 0.2
+    height: float | None = None
+    offset_x: float = 0.0
+    offset_y: float = 0.0
+    pad_x: float = 0.0
+    pad_y: float = 0.0
+
+
+@dataclass(frozen=True)
 class FieldConfig:
     name: str
     label: str
@@ -21,6 +33,7 @@ class FieldConfig:
     expected_pattern: str | None = None
     preprocess: str | None = None
     default_value: str | None = None
+    anchor: AnchorConfig | None = None
 
 
 @dataclass(frozen=True)
