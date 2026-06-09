@@ -49,8 +49,14 @@ def main() -> int:
                 verbose=args.verbose_ocr,
             ),
         )
-        job = service.process(args.sample)
-        AppStorage(Path("data/app.db")).save_job(job)
+        storage = AppStorage(Path("data/app.db"))
+        pattern_name = service.detect_pattern(args.sample)
+        job = service.process(
+            args.sample,
+            pattern_name=pattern_name,
+            skipped_fields=storage.get_skipped_fields(pattern_name),
+        )
+        storage.save_job(job)
         metadata_path = RecyclingDataset(Path("data/recycling")).save_reviewed_job(job)
         print(f"job_id={job.id}")
         print(f"pattern={job.pattern_name}")

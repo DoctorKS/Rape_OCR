@@ -88,7 +88,14 @@ def run_gui() -> int:
             if not self.image_path.text():
                 QMessageBox.warning(self, "Missing image", "กรุณาเลือกไฟล์รูปก่อน")
                 return
-            self.current_job = self.ocr.process(Path(self.image_path.text()))
+            image_path = Path(self.image_path.text())
+            pattern_name = self.ocr.detect_pattern(image_path)
+            skipped_fields = self.storage.get_skipped_fields(pattern_name)
+            self.current_job = self.ocr.process(
+                image_path,
+                pattern_name=pattern_name,
+                skipped_fields=skipped_fields,
+            )
             self.storage.save_job(self.current_job)
             self.table.setRowCount(len(self.current_job.fields))
             for row, field in enumerate(self.current_job.fields):
@@ -110,7 +117,13 @@ def run_gui() -> int:
                 field.status = "reviewed"
             self.storage.save_job(self.current_job, status="reviewed")
             metadata_path = self.recycling.save_reviewed_job(self.current_job)
-            QMessageBox.information(self, "Saved", f"บันทึก review แล้ว:\n{metadata_path}")
+            QMessageBox.information(
+                self,
+                "Saved",
+                "บันทึก review แล้ว\n"
+                "ถ้า field ใดใส่ '-' ระบบจะข้าม OCR field นั้นในครั้งต่อไป\n"
+                f"{metadata_path}",
+            )
 
         def export_docx(self) -> None:
             if self.current_job is None:

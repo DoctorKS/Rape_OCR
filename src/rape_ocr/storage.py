@@ -50,6 +50,13 @@ class AppStorage:
                     status text not null,
                     primary key (job_id, name)
                 );
+
+                create table if not exists skipped_fields (
+                    pattern_name text not null,
+                    field_name text not null,
+                    created_at text not null default current_timestamp,
+                    primary key (pattern_name, field_name)
+                );
                 """
             )
             columns = {
@@ -95,7 +102,23 @@ class AppStorage:
                         item.status,
                     ),
                 )
+                if item.reviewed_value == "-":
+                    conn.execute(
+                        """
+                        insert or ignore into skipped_fields (pattern_name, field_name)
+                        values (?, ?)
+                        """,
+                        (job.pattern_name, item.name),
+                    )
 
     def count_jobs(self) -> int:
         with self._connect() as conn:
             return int(conn.execute("select count(*) from jobs").fetchone()[0])
+
+    def get_skipped_fields(self, pattern_name: str) -> set[str]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "select field_name from skipped_fields where pattern_name = ?",
+                (pattern_name,),
+            ).fetchall()
+        return {str(row[0]) for row in rows}

@@ -156,7 +156,12 @@ class OcrService:
             return "ppk_rape"
         return "ppk_rape"
 
-    def process(self, image_path: Path, pattern_name: str | None = None) -> OcrJob:
+    def process(
+        self,
+        image_path: Path,
+        pattern_name: str | None = None,
+        skipped_fields: set[str] | None = None,
+    ) -> OcrJob:
         cv2 = _load_cv2()
         image = cv2.imread(str(image_path)) if cv2 is not None else None
         if image is None:
@@ -165,9 +170,26 @@ class OcrService:
             height, width = image.shape[:2]
         selected_pattern = pattern_name or self.detect_pattern(image_path)
         pattern = self.patterns[selected_pattern]
+        skip = skipped_fields or set()
 
         fields: list[FieldResult] = []
         for config in pattern.fields:
+            if config.name in skip:
+                fields.append(
+                    FieldResult(
+                        name=config.name,
+                        label=config.label,
+                        prediction="-",
+                        confidence=1.0,
+                        bbox=config.bbox,
+                        kind=config.kind,
+                        docx_tag=config.docx_tag,
+                        raw_prediction="",
+                        reviewed_value="-",
+                        status="skipped",
+                    )
+                )
+                continue
             crop = self._crop_relative(image, config.bbox, width, height) if image is not None else None
             if config.kind == "checkbox":
                 prediction, confidence = self._detect_checkbox(crop)

@@ -49,7 +49,13 @@ def create_app(data_dir: Path | None = None, prefer_paddle: bool = True, verbose
 
     @app.post("/jobs")
     def create_job(request: ImportRequest):
-        job = ocr.process(Path(request.image_path), request.pattern_name)
+        image_path = Path(request.image_path)
+        pattern_name = request.pattern_name or ocr.detect_pattern(image_path)
+        job = ocr.process(
+            image_path,
+            pattern_name=pattern_name,
+            skipped_fields=storage.get_skipped_fields(pattern_name),
+        )
         jobs[job.id] = job
         storage.save_job(job)
         return job.reviewed_payload()

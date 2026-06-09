@@ -50,7 +50,9 @@ flowchart TD
     M --> N["แสดงผลในตาราง GUI\nField / OCR / Reviewed / Confidence / Status"]
     N --> O{"Reviewer แก้ช่อง Reviewed แล้วหรือยัง"}
     O -->|"ยัง"| N
+    O -->|"Reviewed = '-'"| X["จำ field ลง skipped_fields\npattern + field_name"]
     O -->|"Save Review"| P["บันทึก reviewed job ลง SQLite"]
+    X --> P
     P --> Q["Dataset Recycling Service"]
     Q --> R["metadata.json + original image copy"]
     O -->|"Export DOCX"| S["เลือก .docx template"]
@@ -100,6 +102,7 @@ flowchart TD
     D --> F["Crop bbox per field"]
     E --> F
     F --> G{"field kind / preprocess"}
+    G -->|"field อยู่ใน skipped_fields"| X["ไม่ OCR\nprediction='-'\nstatus='skipped'"]
     G -->|"text"| H["OCR crop as-is"]
     G -->|"checkbox"| I["OpenCV dark-ratio checkbox detection"]
     G -->|"table_date"| J["Upscale + adaptive threshold\nfor lower table date/time"]
@@ -110,6 +113,7 @@ flowchart TD
     K --> M
     L --> M
     I --> N["checked / unchecked"]
+    X --> S["FieldResult"]
     M --> O["raw_prediction"]
     O --> P{"special normalize"}
     P -->|"result_choice"| Q["positive / negative"]
@@ -180,6 +184,7 @@ sequenceDiagram
     Client->>API: GET /patterns
     API-->>Client: ppk_rape, rural_rape
     Client->>API: POST /jobs {image_path, pattern_name?}
+    API->>DB: read skipped_fields for pattern
     API->>OCR: process image
     OCR-->>API: reviewed_payload
     API->>DB: save pending job
@@ -215,6 +220,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["OCR job"] --> B[("data/app.db")]
+    B --> B1[("skipped_fields\npattern_name + field_name")]
     A --> C["data/recycling/<pattern>/<timestamp_jobid>/metadata.json"]
     A --> D["data/recycling/<pattern>/<timestamp_jobid>/<original_image>"]
     A --> E["output/generated.docx\nหรือ path ที่ user เลือก"]
@@ -230,3 +236,5 @@ flowchart TD
 - ห้ามนำ recycling data เข้า frozen test set แบบอัตโนมัติ
 - `raw_prediction` คือผล OCR ดิบ ส่วน `prediction` อาจเป็นค่าที่ normalize แล้ว
   เช่น `positive` หรือ `negative`
+- ถ้า reviewer ใส่ `-` ใน `Reviewed` field นั้นจะถูกบันทึกใน `skipped_fields`
+  และรอบถัดไปจะไม่ OCR field นั้นใน pattern เดียวกัน

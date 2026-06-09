@@ -24,6 +24,10 @@ cd C:\dev\Rape_OCR
 5. ระบบจะเก็บผลเข้า `data/recycling/.../metadata.json`
 6. ถ้าจะสร้างไฟล์ Word ให้กด `Export DOCX`
 
+หมายเหตุ: ถ้า field ไหนไม่ต้อง OCR ในครั้งต่อไป ให้ใส่ `-` ในช่อง `Reviewed`
+แล้วกด `Save Review` ระบบจะจำ field นั้นตาม pattern และครั้งหน้าจะข้าม OCR
+field นั้น โดยแสดงค่า `-` และ status `skipped`
+
 ---
 
 ## เริ่มทำ Dataset สำหรับ Train
@@ -86,4 +90,3 @@ C:\dev\Rape_OCR\data\recycling\<pattern>\<timestamp_jobid>\metadata.json
 - แยก train / validation / test
 - export dataset สำหรับ training
 - กันไม่ให้ recycling data ไหลเข้า frozen test set แบบอัตโนมัติ
-
