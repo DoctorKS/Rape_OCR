@@ -19,6 +19,7 @@ class FieldConfig:
     docx_tag: str | None = None
     required: bool = False
     expected_pattern: str | None = None
+    preprocess: str | None = None
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class FieldResult:
     bbox: BBox
     kind: str = "text"
     docx_tag: str | None = None
+    raw_prediction: str | None = None
     reviewed_value: str | None = None
     status: str = "pending_review"
 
@@ -65,6 +67,7 @@ class OcrJob:
                     "name": item.name,
                     "label": item.label,
                     "prediction": item.prediction,
+                    "raw_prediction": item.raw_prediction,
                     "reviewed_value": item.reviewed_value,
                     "final_value": item.final_value,
                     "confidence": item.confidence,
@@ -76,4 +79,3 @@ class OcrJob:
                 for item in self.fields
             ],
         }
-

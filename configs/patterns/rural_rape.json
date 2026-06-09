@@ -55,7 +55,76 @@
       "label": "หมายเหตุลายมือด้านล่าง",
       "bbox": [0.12, 0.86, 0.70, 0.98],
       "docx_tag": "bottom_note"
+    },
+    {
+      "name": "specimen_regis_date",
+      "label": "Specimen regis date",
+      "bbox": [0.24, 0.845, 0.39, 0.885],
+      "docx_tag": "specimen_regis_date",
+      "preprocess": "table_date"
+    },
+    {
+      "name": "specimen_regis_time",
+      "label": "Specimen regis time",
+      "bbox": [0.39, 0.845, 0.52, 0.885],
+      "docx_tag": "specimen_regis_time",
+      "preprocess": "table_date"
+    },
+    {
+      "name": "extraction_date",
+      "label": "Extraction date",
+      "bbox": [0.64, 0.845, 0.80, 0.885],
+      "docx_tag": "extraction_date",
+      "preprocess": "table_date"
+    },
+    {
+      "name": "extraction_time",
+      "label": "Extraction time",
+      "bbox": [0.83, 0.845, 0.96, 0.885],
+      "docx_tag": "extraction_time",
+      "preprocess": "table_date"
+    },
+    {
+      "name": "sperm_exam_date",
+      "label": "Sperm exam date",
+      "bbox": [0.64, 0.875, 0.80, 0.915],
+      "docx_tag": "sperm_exam_date",
+      "preprocess": "table_date"
+    },
+    {
+      "name": "sperm_exam_time",
+      "label": "Sperm exam time",
+      "bbox": [0.83, 0.875, 0.96, 0.915],
+      "docx_tag": "sperm_exam_time",
+      "preprocess": "table_date"
+    },
+    {
+      "name": "lower_right_handwritten_date",
+      "label": "วันที่ลายมือด้านล่างขวา",
+      "bbox": [0.53, 0.895, 0.68, 0.955],
+      "docx_tag": "lower_right_handwritten_date",
+      "preprocess": "handwriting"
+    },
+    {
+      "name": "lower_right_handwritten_note",
+      "label": "ลายมือใกล้วันที่ด้านล่างขวา",
+      "bbox": [0.53, 0.925, 0.68, 0.985],
+      "docx_tag": "lower_right_handwritten_note",
+      "preprocess": "handwriting"
+    },
+    {
+      "name": "vaginal_result",
+      "label": "Vaginal result",
+      "bbox": [0.12, 0.895, 0.38, 0.975],
+      "kind": "result_choice",
+      "docx_tag": "vaginal_result"
+    },
+    {
+      "name": "endocervical_result",
+      "label": "Endocervical result",
+      "bbox": [0.12, 0.895, 0.38, 0.975],
+      "kind": "result_choice",
+      "docx_tag": "endocervical_result"
     }
   ]
 }
-

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import load_patterns
-from .ocr_service import OcrService, PlaceholderOcrEngine
+from .ocr_service import OcrService, create_ocr_engine
 from .recycling import RecyclingDataset
 from .storage import AppStorage
 from .template_service import DocxTemplateService
@@ -36,12 +36,13 @@ def run_gui() -> int:
             self.setWindowTitle("Rape OCR")
             self.resize(1100, 720)
             self.patterns = load_patterns()
-            self.ocr = OcrService(self.patterns, PlaceholderOcrEngine())
+            self.ocr = OcrService(self.patterns, create_ocr_engine())
             self.storage = AppStorage(Path("data/app.db"))
             self.recycling = RecyclingDataset(Path("data/recycling"))
             self.templates = DocxTemplateService()
             self.current_job = None
 
+            engine = QLabel(f"OCR engine: {self.ocr.engine.name}")
             self.image_path = QLineEdit()
             self.image_path.setPlaceholderText("เลือกไฟล์รูปเอกสาร")
             browse = QPushButton("Import")
@@ -50,13 +51,17 @@ def run_gui() -> int:
             process.clicked.connect(self.process_image)
             recycle = QPushButton("Save Review")
             recycle.clicked.connect(self.save_review)
+            export = QPushButton("Export DOCX")
+            export.clicked.connect(self.export_docx)
 
             top = QHBoxLayout()
+            top.addWidget(engine)
             top.addWidget(QLabel("Image"))
             top.addWidget(self.image_path)
             top.addWidget(browse)
             top.addWidget(process)
             top.addWidget(recycle)
+            top.addWidget(export)
 
             self.table = QTableWidget(0, 5)
             self.table.setHorizontalHeaderLabels(["Field", "OCR", "Reviewed", "Confidence", "Status"])
@@ -107,8 +112,38 @@ def run_gui() -> int:
             metadata_path = self.recycling.save_reviewed_job(self.current_job)
             QMessageBox.information(self, "Saved", f"บันทึก review แล้ว:\n{metadata_path}")
 
+        def export_docx(self) -> None:
+            if self.current_job is None:
+                QMessageBox.warning(self, "No job", "ยังไม่มีงาน OCR ให้ export")
+                return
+            template_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Select DOCX template",
+                str(Path("docs/example").resolve()),
+                "Word documents (*.docx)",
+            )
+            if not template_path:
+                return
+            output_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save generated DOCX",
+                str(Path("output/generated.docx").resolve()),
+                "Word documents (*.docx)",
+            )
+            if not output_path:
+                return
+            values = {}
+            for row, field in enumerate(self.current_job.fields):
+                item = self.table.item(row, 2)
+                field.reviewed_value = item.text() if item is not None else field.prediction
+                field.status = "reviewed"
+                values[field.docx_tag or field.name] = field.final_value
+            self.storage.save_job(self.current_job, status="reviewed")
+            self.recycling.save_reviewed_job(self.current_job)
+            saved_path = self.templates.fill(Path(template_path), Path(output_path), values)
+            QMessageBox.information(self, "Exported", f"สร้างเอกสารแล้ว:\n{saved_path}")
+
     app = QApplication([])
     window = MainWindow()
     window.show()
     return app.exec()
-

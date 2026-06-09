@@ -21,6 +21,7 @@ def load_pattern(path: Path) -> PatternConfig:
             docx_tag=item.get("docx_tag"),
             required=item.get("required", False),
             expected_pattern=item.get("expected_pattern"),
+            preprocess=item.get("preprocess"),
         )
         for item in data["fields"]
     )
@@ -38,4 +39,3 @@ def load_patterns(pattern_dir: Path = DEFAULT_PATTERN_DIR) -> dict[str, PatternC
         pattern = load_pattern(path)
         patterns[pattern.name] = pattern
     return patterns
-

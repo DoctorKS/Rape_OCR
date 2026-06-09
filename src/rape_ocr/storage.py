@@ -41,6 +41,7 @@ class AppStorage:
                     name text not null,
                     label text not null,
                     prediction text not null,
+                    raw_prediction text,
                     reviewed_value text,
                     confidence real not null,
                     bbox_json text not null,
@@ -51,6 +52,12 @@ class AppStorage:
                 );
                 """
             )
+            columns = {
+                row[1]
+                for row in conn.execute("pragma table_info(fields)").fetchall()
+            }
+            if "raw_prediction" not in columns:
+                conn.execute("alter table fields add column raw_prediction text")
 
     def save_job(self, job: OcrJob, status: str = "pending_review") -> None:
         with self._connect() as conn:
@@ -71,14 +78,15 @@ class AppStorage:
                 conn.execute(
                     """
                     insert or replace into fields
-                    (job_id, name, label, prediction, reviewed_value, confidence, bbox_json, kind, docx_tag, status)
-                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (job_id, name, label, prediction, raw_prediction, reviewed_value, confidence, bbox_json, kind, docx_tag, status)
+                    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         job.id,
                         item.name,
                         item.label,
                         item.prediction,
+                        item.raw_prediction,
                         item.reviewed_value,
                         item.confidence,
                         json.dumps(item.bbox),

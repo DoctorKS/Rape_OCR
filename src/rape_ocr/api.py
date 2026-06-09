@@ -3,13 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import load_patterns
-from .ocr_service import OcrService, PlaceholderOcrEngine
+from .ocr_service import OcrService, create_ocr_engine
 from .recycling import RecyclingDataset
 from .storage import AppStorage
 from .template_service import DocxTemplateService
 
 
-def create_app(data_dir: Path | None = None):
+def create_app(data_dir: Path | None = None, prefer_paddle: bool = True, verbose_ocr: bool = False):
     try:
         from fastapi import FastAPI
         from pydantic import BaseModel
@@ -19,7 +19,7 @@ def create_app(data_dir: Path | None = None):
     root = data_dir or Path("data")
     storage = AppStorage(root / "app.db")
     recycling = RecyclingDataset(root / "recycling")
-    ocr = OcrService(load_patterns(), PlaceholderOcrEngine())
+    ocr = OcrService(load_patterns(), create_ocr_engine(prefer_paddle=prefer_paddle, verbose=verbose_ocr))
     templates = DocxTemplateService()
     app = FastAPI(title="Rape OCR Local API", version="0.1.0")
     jobs = {}
@@ -41,7 +41,7 @@ def create_app(data_dir: Path | None = None):
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "offline": True}
+        return {"status": "ok", "offline": True, "ocr_engine": ocr.engine.name}
 
     @app.get("/patterns")
     def patterns():
@@ -78,4 +78,3 @@ def create_app(data_dir: Path | None = None):
         return {"job_id": job.id, "output_path": str(output_path)}
 
     return app
-

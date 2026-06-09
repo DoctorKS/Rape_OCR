@@ -1,0 +1,89 @@
+# Rape OCR - How To
+
+> ใช้สำหรับ copy ไปวางใน Notion ได้ทันที
+
+---
+
+## วิธีเข้า GUI
+
+เปิด PowerShell แล้วรัน:
+
+```powershell
+cd C:\dev\Rape_OCR
+.\.venv\Scripts\python.exe -m rape_ocr.main --gui
+```
+
+---
+
+## Flow ในหน้า GUI
+
+1. กด `Import` แล้วเลือกรูปเอกสาร
+2. กด `OCR`
+3. แก้ค่าที่ช่อง `Reviewed`
+4. กด `Save Review`
+5. ระบบจะเก็บผลเข้า `data/recycling/.../metadata.json`
+6. ถ้าจะสร้างไฟล์ Word ให้กด `Export DOCX`
+
+---
+
+## เริ่มทำ Dataset สำหรับ Train
+
+ตอนนี้ระบบยังไม่ train model อัตโนมัติ แต่เริ่มสะสม dataset ได้แล้วจาก GUI หรือ CLI
+
+วิธีเริ่มที่ถูกต้อง:
+
+1. เอาเอกสารเก่าจริงมาใส่ทีละรูป
+2. OCR ด้วย GUI
+3. คนตรวจแก้ค่าทุก field ให้ถูกในช่อง `Reviewed`
+4. กด `Save Review`
+5. ระบบจะเก็บเป็น training candidate
+
+ตำแหน่งไฟล์ training candidate:
+
+```text
+C:\dev\Rape_OCR\data\recycling\<pattern>\<timestamp_jobid>\metadata.json
+```
+
+ตัวอย่าง pattern:
+
+- `ppk_rape`
+- `rural_rape`
+
+---
+
+## ข้อมูลที่อยู่ใน metadata.json
+
+ใน `metadata.json` จะมีข้อมูลสำหรับนำไปเตรียม dataset เช่น:
+
+- รูปต้นฉบับ
+- pattern เช่น `ppk_rape` หรือ `rural_rape`
+- field name
+- bbox
+- OCR prediction
+- reviewed value
+- confidence
+
+---
+
+## จำนวนเอกสารที่ควรสะสมก่อน Train
+
+ช่วงแรกยังไม่ควร train ทันที ให้สะสมและแก้ label ก่อน:
+
+| จำนวนข้อมูล | ใช้ทำอะไร |
+| --- | --- |
+| 30-50 ใบต่อ pattern | ใช้ปรับ field box/template และดูว่า OCR พลาดตรงไหน |
+| 200-300 ใบต่อ pattern | เริ่มพอวัด accuracy จริง |
+| 1,000+ crop ต่อ field | ค่อยเริ่ม fine-tune ลายมือจริงจัง |
+
+---
+
+## ขั้นต่อไปที่ควรทำ
+
+เพิ่มหน้า `Dataset Manager` ใน GUI เพื่อ:
+
+- ดูรายการจาก `data/recycling`
+- approve dataset
+- แยก train / validation / test
+- export dataset สำหรับ training
+- กันไม่ให้ recycling data ไหลเข้า frozen test set แบบอัตโนมัติ
+

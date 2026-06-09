@@ -13,12 +13,14 @@ dependencies = [
 
 [project.optional-dependencies]
 app = [
+    "numpy<2.4,>=1.24",
     "opencv-python>=4.8",
     "PySide6>=6.7",
     "fastapi>=0.111",
     "uvicorn>=0.30",
     "python-docx>=1.1",
     "paddleocr>=2.8",
+    "paddlepaddle==3.2.2",
 ]
 dev = [
 ]
