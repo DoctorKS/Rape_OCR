@@ -24,6 +24,9 @@ cd C:\dev\Rape_OCR
 5. ระบบจะเก็บผลเข้า `data/recycling/.../metadata.json`
 6. ถ้าจะสร้างไฟล์ Word ให้กด `Export DOCX`
 
+หมายเหตุ: OCR ใน GUI จะรันเป็น background worker เพื่อไม่ให้หน้าต่างค้างระหว่าง PaddleOCR/OpenCV ทำงาน
+ระหว่าง OCR ปุ่ม `Import`, `OCR`, `Save Review`, `Export DOCX` จะถูกปิดชั่วคราวจนกว่างาน OCR จะเสร็จ
+
 หมายเหตุ: ถ้า field ไหนไม่ต้อง OCR ในครั้งต่อไป ให้ใส่ `-` ในช่อง `Reviewed`
 แล้วกด `Save Review` ระบบจะจำ field นั้นตาม pattern และครั้งหน้าจะข้าม OCR
 field นั้น โดยแสดงค่า `-` และ status `skipped`
@@ -208,6 +211,8 @@ Remove-Item -Recurse -LiteralPath "C:\dev\Rape_OCR\data\recycling\rural_rape\202
 หมายเหตุ:
 
 - ถ้า reviewer ใส่ `-` ในช่อง `Reviewed` field นั้นจะไม่ถูก export และจะถูกจำเป็น skipped field สำหรับรอบถัดไป
+- ค่า result ที่ OCR/review เป็น `negative` จะถูก fill ลง `.docx` เป็น `Absence of spermatozoa`
+- ค่า result ที่ OCR/review เป็น `positive` จะถูก fill ลง `.docx` เป็น `Presence of spermatozoa`
 - วันที่ที่อ่านได้เช่น `15 พ.ค. 2569`, `15 พ.0 2569`, หรือ `15/05/2569` จะถูกแปลงเป็นรูปแบบ `15/05/69`
 - `lower_right_handwritten_date` ถ้าอ่านได้เป็นรหัสรูปแบบ `5042/69` ระบบจะคงค่าดิบไว้ให้ reviewer ตรวจ เพราะค่าไม่ได้อยู่ในรูปแบบวันที่ปกติ
 
@@ -229,3 +234,15 @@ Remove-Item -Recurse -LiteralPath "C:\dev\Rape_OCR\data\recycling\rural_rape\202
 | `hn` | รูป HN ด้านบน/ล่าง | `i4` |
 
 สำหรับ `ppk_rape` ค่า `specimen_regis_date` จะใช้ค่าเดียวกับ `collection_date` เสมอ ดังนั้น calendar control ลำดับที่ 2 จะถูกเติมด้วย `collection_date` อัตโนมัติ
+
+สำหรับ `ppk_rape` field `hospital` เป็นค่าคงที่เสมอ:
+
+```text
+โรงพยาบาลพระปกเกล้า
+```
+
+สำหรับ `vulvar_result`, `vaginal_result`, `endocervical_result` ระบบจะเก็บค่า review เป็น `negative` หรือ `positive`
+แต่ตอน export ลง `R1`, `R2`, `R3` จะเปลี่ยนเป็นข้อความเต็ม:
+
+- `negative` -> `Absence of spermatozoa`
+- `positive` -> `Presence of spermatozoa`

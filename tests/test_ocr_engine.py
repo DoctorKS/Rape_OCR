@@ -21,6 +21,7 @@ class OcrEngineTest(unittest.TestCase):
         self.assertEqual(_normalize_result_choice("neg."), "negative")
         self.assertEqual(_normalize_result_choice("Present"), "positive")
         self.assertEqual(_normalize_result_choice("positive"), "positive")
+        self.assertEqual(_normalize_result_choice("unclear"), "")
 
     def test_normalize_case_code(self):
         self.assertEqual(_normalize_case_code("S042/69"), "5042/69")

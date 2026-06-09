@@ -14,7 +14,7 @@ flowchart TD
     B -->|"--sample <image>"| E["CLI sample pipeline"]
 
     C --> F["Import image"]
-    C --> G["OCR"]
+    C --> G["OCR\nbackground QThread worker"]
     C --> H["Save Review"]
     C --> I["Export DOCX"]
 
@@ -274,6 +274,7 @@ flowchart TD
     D --> D1["collection_date -> calendar 1"]
     D --> D2["specimen_regis_date or collection_date -> calendar 2"]
     D --> D3["lower_right_handwritten_date or handwritten_date -> calendar 3"]
+    E --> E1["ppk hospital constant\nโรงพยาบาลพระปกเกล้า"]
 
     C --> F["DocxTemplateService"]
     D --> F
@@ -293,3 +294,12 @@ flowchart TD
 สำหรับ `ppk_rape` ระบบใช้ protocol เดียวกับ `rural_rape` แต่เปลี่ยน result mapping เป็นลำดับตาราง ppk:
 `vulvar_result -> R1`, `vaginal_result -> R2`, `endocervical_result -> R3` และใช้
 `collection_date` เป็น `specimen_regis_date` อัตโนมัติเมื่อไม่มี field `specimen_regis_date` แยก
+
+GUI จะรัน OCR ผ่าน background `QThread` worker เพื่อไม่ให้ Qt main thread ค้างระหว่าง PaddleOCR/OpenCV ทำงาน
+และ `ppk_rape.hospital` เป็น field ชนิด `constant` ค่า `โรงพยาบาลพระปกเกล้า` เสมอ
+
+ค่า result ภายในระบบยัง normalize เป็น `negative` หรือ `positive` เพื่อให้ reviewer ตรวจง่าย แต่ก่อน fill ลง
+`R1`, `R2`, `R3` ใน `.docx` ระบบจะแปลงเป็นข้อความเต็ม:
+
+- `negative` -> `Absence of spermatozoa`
+- `positive` -> `Presence of spermatozoa`

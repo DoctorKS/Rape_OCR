@@ -4,7 +4,7 @@ from pathlib import Path
 
 from .config import load_patterns
 from .export_mapping import build_docx_export_payload
-from .ocr_service import OcrService, create_ocr_engine
+from .ocr_service import OcrService, _normalize_result_choice, create_ocr_engine
 from .recycling import RecyclingDataset
 from .storage import AppStorage
 from .template_service import DocxTemplateService
@@ -68,6 +68,8 @@ def create_app(data_dir: Path | None = None, prefer_paddle: bool = True, verbose
         for field in job.fields:
             if field.name in values:
                 field.reviewed_value = values[field.name]
+                if field.kind == "result_choice" and field.reviewed_value != "-":
+                    field.reviewed_value = _normalize_result_choice(field.reviewed_value)
                 field.status = "reviewed"
         storage.save_job(job, status="reviewed")
         metadata_path = recycling.save_reviewed_job(job)

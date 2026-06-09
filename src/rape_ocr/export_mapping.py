@@ -26,6 +26,20 @@ PPK_RESULT_FIELD_MAP = {
     "endocervical_result": "R3",
 }
 
+RESULT_CHOICE_FIELDS = {
+    "vulvar_result",
+    "vaginal_result",
+    "endocervical_result",
+    "r3_result",
+    "extra_result",
+    "third_result",
+}
+
+DOCX_RESULT_VALUES = {
+    "negative": "Absence of spermatozoa",
+    "positive": "Presence of spermatozoa",
+}
+
 PROTOTYPE_DATE_FIELD_ORDER = (
     "collection_date",
     "specimen_regis_date",
@@ -74,7 +88,7 @@ def build_docx_export_payload(fields: list[FieldResult]) -> DocxExportPayload:
     is_ppk = "vulvar_result" in field_names
 
     for field in fields:
-        value = field.final_value.strip()
+        value = normalize_export_value(field.name, field.final_value)
         if not value or value == "-":
             continue
 
@@ -89,6 +103,20 @@ def build_docx_export_payload(fields: list[FieldResult]) -> DocxExportPayload:
 
     date_values = _prototype_date_values(values_by_name)
     return DocxExportPayload(values=values, date_values=date_values)
+
+
+def normalize_export_value(field_name: str, value: str) -> str:
+    text = value.strip()
+    if text == "-":
+        return text
+    if field_name not in RESULT_CHOICE_FIELDS:
+        return text
+    compact = text.lower().replace(" ", "").replace(".", "")
+    if compact in {"negative", "neg", "nega", "negati", "absent", "abs", "-"}:
+        return DOCX_RESULT_VALUES["negative"]
+    if compact in {"positive", "pos", "present", "pres", "+"}:
+        return DOCX_RESULT_VALUES["positive"]
+    return ""
 
 
 def _prototype_text_key(field_name: str, is_ppk: bool) -> str | None:

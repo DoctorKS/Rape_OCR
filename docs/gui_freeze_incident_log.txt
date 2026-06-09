@@ -1,0 +1,32 @@
+Rape OCR GUI Freeze Incident Log
+Date: 2026-06-09
+
+Summary:
+หลังผู้ใช้ทำ OCR แล้วผลลัพธ์แสดงใน table ของ GUI จากนั้น import หรือ OCR ข้อมูลชุดถัดไปแล้ว Windows แสดงอาการ Not Responding
+
+Observed behavior:
+- GUI แสดง table ผล OCR ได้ในรอบแรก
+- เมื่อเริ่มงานชุดถัดไป หน้าต่างอาจค้างหรือไม่ตอบสนอง
+- อาการเกิดชัดขึ้นเมื่อใช้ PaddleOCR จริง เพราะ OCR/OpenCV ใช้ CPU และ RAM สูง
+
+Root cause:
+- OCR เดิมรันบน Qt main UI thread ผ่าน MainWindow.process_image()
+- ระหว่าง PaddleOCR/OpenCV ทำงาน Qt event loop ไม่ได้ process event ของหน้าต่าง
+- Windows จึงมองว่า application ไม่ตอบสนอง
+- Hardware เช่น RAM น้อย, CPU ช้า, disk paging ทำให้อาการหนักขึ้นได้ แต่ root cause หลักเป็น software threading
+
+Fix implemented:
+- ย้าย OCR ใน GUI ไปทำงานผ่าน background QThread worker
+- ระหว่าง OCR จะ disable ปุ่ม Import, OCR, Save Review, Export DOCX ชั่วคราว
+- เพิ่ม status label เช่น OCR processing... และ OCR complete
+- เมื่อ worker ทำงานเสร็จ จึงส่ง OcrJob กลับมาเติม table บน GUI thread
+- เพิ่ม ppk_rape hospital เป็น field ชนิด constant ค่า โรงพยาบาลพระปกเกล้า
+
+Verification:
+- py_compile ผ่านสำหรับ src/rape_ocr/ui.py และ src/rape_ocr/ocr_service.py
+- unittest discover ผ่าน 23 tests
+- smoke test ppk_rape ยืนยัน hospital ถูกเติมเป็น โรงพยาบาลพระปกเกล้า และ export payload map ไป i5
+
+Residual risk:
+- ยังไม่มี automated GUI interaction test สำหรับคลิก Import/OCR จริงในหน้าต่าง PySide6
+- PaddleOCR ยังอาจใช้ทรัพยากรสูง แต่ GUI ไม่ควรค้างแบบ main-thread block แล้ว

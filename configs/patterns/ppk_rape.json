@@ -25,6 +25,15 @@
       "required": true
     },
     {
+      "name": "hospital",
+      "label": "Hospital",
+      "bbox": [0.30, 0.08, 0.60, 0.16],
+      "kind": "constant",
+      "docx_tag": "hospital",
+      "default_value": "โรงพยาบาลพระปกเกล้า",
+      "required": true
+    },
+    {
       "name": "collection_date",
       "label": "Collection date",
       "bbox": [0.10, 0.86, 0.30, 0.91],

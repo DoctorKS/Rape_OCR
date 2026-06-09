@@ -34,7 +34,7 @@ class TemplateServicePrototypeTest(unittest.TestCase):
             DocxTemplateService().fill(
                 template_path,
                 output_path,
-                {"i2": "Patient A", "R1": "negative"},
+                {"i2": "Patient A", "R1": "Absence of spermatozoa"},
                 ["15/05/69", "16/05/69", "17/05/69"],
             )
 
@@ -42,7 +42,7 @@ class TemplateServicePrototypeTest(unittest.TestCase):
                 filled = archive.read("word/document.xml").decode("utf-8")
 
             self.assertIn("Patient A", filled)
-            self.assertIn("negative", filled)
+            self.assertIn("Absence of spermatozoa", filled)
             self.assertIn("15/05/69", filled)
             self.assertIn("16/05/69", filled)
             self.assertIn("17/05/69", filled)

@@ -101,6 +101,14 @@ dataset promotion ที่ควบคุมได้สำหรับ train, 
 
 ก่อน deploy model ใหม่ ต้องเทียบกับ model เดิมบน golden document set เดียวกัน
 
+## Current Implementation Notes
+
+- GUI OCR ต้องรันผ่าน background `QThread` worker เท่านั้น ห้ามรัน PaddleOCR/OpenCV บน Qt main thread เพราะจะทำให้ Windows แสดง `Not Responding`
+- เมื่อ OCR worker ทำงานอยู่ ให้ disable ปุ่ม `Import`, `OCR`, `Save Review`, `Export DOCX` และอัปเดต status label
+- บันทึกเหตุการณ์ GUI ค้างและ root cause ไว้ที่ `docs/gui_freeze_incident_log.txt`
+- `ppk_rape.hospital` เป็น field ชนิด `constant` และต้องมีค่า `โรงพยาบาลพระปกเกล้า` เสมอ
+- result fields เช่น `vulvar_result`, `vaginal_result`, `endocervical_result` เก็บค่า review เป็น `negative` / `positive` แต่ export ลง DOCX เป็น `Absence of spermatozoa` / `Presence of spermatozoa`
+
 ## Review Checklist
 
 หลังจบแต่ละ block ให้ review:
@@ -110,4 +118,3 @@ dataset promotion ที่ควบคุมได้สำหรับ train, 
 - ตรวจสอบอะไรแล้ว
 - ยังมี risk หรือจุดที่ยังไม่ได้ test อะไร
 - ผู้ใช้ขอ `git add` หรือ `git commit` หรือไม่
-

@@ -191,6 +191,20 @@ class OcrService:
                     )
                 )
                 continue
+            if config.kind == "constant":
+                fields.append(
+                    FieldResult(
+                        name=config.name,
+                        label=config.label,
+                        prediction=config.default_value or "",
+                        confidence=1.0,
+                        bbox=config.bbox,
+                        kind=config.kind,
+                        docx_tag=config.docx_tag,
+                        raw_prediction="",
+                    )
+                )
+                continue
             crop = self._crop_relative(image, config.bbox, width, height) if image is not None else None
             if config.kind == "checkbox":
                 prediction, confidence = self._detect_checkbox(crop)
@@ -272,7 +286,7 @@ def _normalize_result_choice(text: str) -> str:
         return "negative"
     if any(token in compact for token in positive_tokens):
         return "positive"
-    return text.strip()
+    return ""
 
 
 def _normalize_field_prediction(kind: str, raw_prediction: str) -> str:
