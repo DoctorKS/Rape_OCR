@@ -1,0 +1,47 @@
+{
+  "name": "ppk_rape",
+  "display_name": "PPK rape laboratory report",
+  "version": "0.1",
+  "fields": [
+    {
+      "name": "patient_name",
+      "label": "ชื่อผู้ป่วย",
+      "bbox": [0.26, 0.18, 0.62, 0.23],
+      "docx_tag": "patient_name",
+      "required": true
+    },
+    {
+      "name": "hn",
+      "label": "HN",
+      "bbox": [0.78, 0.05, 0.95, 0.12],
+      "docx_tag": "hn",
+      "required": true
+    },
+    {
+      "name": "lab_no",
+      "label": "Lab No",
+      "bbox": [0.78, 0.12, 0.95, 0.18],
+      "docx_tag": "lab_no",
+      "required": true
+    },
+    {
+      "name": "collection_time",
+      "label": "เวลาเก็บตรวจ",
+      "bbox": [0.10, 0.70, 0.30, 0.78],
+      "docx_tag": "collection_time"
+    },
+    {
+      "name": "ap_result",
+      "label": "Acid phosphatase",
+      "bbox": [0.55, 0.30, 0.75, 0.52],
+      "docx_tag": "ap_result"
+    },
+    {
+      "name": "sperm_result",
+      "label": "Spermatozoa",
+      "bbox": [0.75, 0.32, 0.94, 0.56],
+      "docx_tag": "sperm_result"
+    }
+  ]
+}
+

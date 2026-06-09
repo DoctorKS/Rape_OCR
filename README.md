@@ -131,6 +131,54 @@ promotion เพื่อเลือกว่าจะเข้า train, valid
 - Storage: SQLite database และ folder ภายในเครื่องสำหรับ raw image, reviewed
   crop, template, generated document และ model version
 
+ดู flow chart และ Mermaid diagram เพิ่มเติมได้ที่ [docs/architecture.md](docs/architecture.md)
+
+## วิธีรัน MVP
+
+ติดตั้ง dependency พื้นฐาน:
+
+```powershell
+python -m pip install -e .
+```
+
+ถ้าต้องการ GUI, API, OpenCV และ OCR stack เต็ม ให้ติดตั้ง optional dependencies:
+
+```powershell
+python -m pip install -e ".[app]"
+```
+
+เปิด native GUI:
+
+```powershell
+python -m rape_ocr.main --gui
+```
+
+เปิด local API ที่ `127.0.0.1:8765`:
+
+```powershell
+python -m rape_ocr.main --api
+```
+
+ประมวลผลรูปตัวอย่างด้วย placeholder OCR เพื่อทดสอบ pipeline, SQLite และ
+recycling dataset:
+
+```powershell
+python -m rape_ocr.main --sample docs\example\S__29351955_0.jpg
+```
+
+หมายเหตุ: MVP นี้วาง pipeline และหน้าจอ review ก่อน ส่วน OCR จริงจะเริ่มทำงานเมื่อ
+ติดตั้ง PaddleOCR และเปลี่ยน engine จาก placeholder เป็น PaddleOCR ใน service
+layer
+
+ไฟล์ใน `docs/example/` ใช้เป็นข้อมูลตัวอย่าง local เท่านั้น และไม่ควร commit หรือ
+push หากมีข้อมูลผู้ป่วย/ข้อมูลคดีจริง
+
+รัน test ด้วยเครื่องมือมาตรฐานของ Python:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
 ## Safety Rules
 
 - ไม่ส่งภาพผู้ป่วยหรือข้อมูล OCR ออก internet โดย default
@@ -139,4 +187,3 @@ promotion เพื่อเลือกว่าจะเข้า train, valid
 - ต้องแยก raw OCR prediction ออกจาก human-approved label
 - ก่อนเปลี่ยน model ที่ใช้งานจริง ต้องเทียบ model ใหม่กับ model เดิมบน golden
   document set เดียวกัน
-

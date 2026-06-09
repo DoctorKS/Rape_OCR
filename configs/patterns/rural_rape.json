@@ -1,0 +1,61 @@
+{
+  "name": "rural_rape",
+  "display_name": "Rural specimen examination request form",
+  "version": "0.1",
+  "fields": [
+    {
+      "name": "patient_name",
+      "label": "Name",
+      "bbox": [0.18, 0.15, 0.55, 0.20],
+      "docx_tag": "patient_name",
+      "required": true
+    },
+    {
+      "name": "age",
+      "label": "Age",
+      "bbox": [0.66, 0.15, 0.76, 0.20],
+      "docx_tag": "age"
+    },
+    {
+      "name": "hn",
+      "label": "HN",
+      "bbox": [0.83, 0.14, 0.96, 0.20],
+      "docx_tag": "hn",
+      "required": true
+    },
+    {
+      "name": "collection_date",
+      "label": "Date of specimen collection",
+      "bbox": [0.45, 0.22, 0.66, 0.27],
+      "docx_tag": "collection_date"
+    },
+    {
+      "name": "vaginal_penetration",
+      "label": "Vaginal penetration",
+      "bbox": [0.20, 0.34, 0.24, 0.38],
+      "kind": "checkbox",
+      "docx_tag": "vaginal_penetration"
+    },
+    {
+      "name": "vaginal_swab",
+      "label": "Vaginal swab",
+      "bbox": [0.43, 0.73, 0.47, 0.77],
+      "kind": "checkbox",
+      "docx_tag": "vaginal_swab"
+    },
+    {
+      "name": "endocervical_swab",
+      "label": "Endocervical swab",
+      "bbox": [0.73, 0.73, 0.77, 0.77],
+      "kind": "checkbox",
+      "docx_tag": "endocervical_swab"
+    },
+    {
+      "name": "bottom_note",
+      "label": "หมายเหตุลายมือด้านล่าง",
+      "bbox": [0.12, 0.86, 0.70, 0.98],
+      "docx_tag": "bottom_note"
+    }
+  ]
+}
+
