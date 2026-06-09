@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import load_patterns
+from .export_mapping import build_docx_export_payload
 from .ocr_service import OcrService, create_ocr_engine
 from .recycling import RecyclingDataset
 from .storage import AppStorage
@@ -75,12 +76,13 @@ def create_app(data_dir: Path | None = None, prefer_paddle: bool = True, verbose
     @app.post("/jobs/{job_id}/export")
     def export_job(job_id: str, request: ExportRequest):
         job = jobs[job_id]
-        values = {
-            field.docx_tag or field.name: field.final_value
-            for field in job.fields
-            if field.final_value
-        }
-        output_path = templates.fill(Path(request.template_path), Path(request.output_path), values)
+        payload = build_docx_export_payload(job.fields)
+        output_path = templates.fill(
+            Path(request.template_path),
+            Path(request.output_path),
+            payload.values,
+            payload.date_values,
+        )
         return {"job_id": job.id, "output_path": str(output_path)}
 
     return app

@@ -1,47 +1,78 @@
 {
   "name": "ppk_rape",
   "display_name": "PPK rape laboratory report",
-  "version": "0.1",
+  "version": "0.2",
   "fields": [
     {
       "name": "patient_name",
-      "label": "ชื่อผู้ป่วย",
-      "bbox": [0.26, 0.18, 0.62, 0.23],
+      "label": "Patient name",
+      "bbox": [0.30, 0.75, 0.56, 0.81],
       "docx_tag": "patient_name",
+      "required": true
+    },
+    {
+      "name": "age",
+      "label": "Age",
+      "bbox": [0.54, 0.75, 0.67, 0.81],
+      "docx_tag": "age",
       "required": true
     },
     {
       "name": "hn",
       "label": "HN",
-      "bbox": [0.78, 0.05, 0.95, 0.12],
+      "bbox": [0.08, 0.74, 0.22, 0.81],
       "docx_tag": "hn",
       "required": true
     },
     {
-      "name": "lab_no",
-      "label": "Lab No",
-      "bbox": [0.78, 0.12, 0.95, 0.18],
-      "docx_tag": "lab_no",
+      "name": "collection_date",
+      "label": "Collection date",
+      "bbox": [0.10, 0.86, 0.30, 0.91],
+      "kind": "table_date",
+      "docx_tag": "collection_date",
       "required": true
     },
     {
       "name": "collection_time",
-      "label": "เวลาเก็บตรวจ",
-      "bbox": [0.10, 0.70, 0.30, 0.78],
+      "label": "Collection time",
+      "bbox": [0.35, 0.85, 0.58, 0.93],
+      "kind": "handwriting",
       "docx_tag": "collection_time"
     },
     {
-      "name": "ap_result",
-      "label": "Acid phosphatase",
-      "bbox": [0.55, 0.30, 0.75, 0.52],
-      "docx_tag": "ap_result"
+      "name": "vulvar_result",
+      "label": "Vulvar result",
+      "bbox": [0.39, 0.28, 0.62, 0.39],
+      "kind": "result_choice",
+      "docx_tag": "vulvar_result"
     },
     {
-      "name": "sperm_result",
-      "label": "Spermatozoa",
-      "bbox": [0.75, 0.32, 0.94, 0.56],
-      "docx_tag": "sperm_result"
+      "name": "vaginal_result",
+      "label": "Vaginal result",
+      "bbox": [0.41, 0.35, 0.62, 0.46],
+      "kind": "result_choice",
+      "docx_tag": "vaginal_result"
+    },
+    {
+      "name": "endocervical_result",
+      "label": "Endocervical result",
+      "bbox": [0.42, 0.41, 0.63, 0.53],
+      "kind": "result_choice",
+      "docx_tag": "endocervical_result"
+    },
+    {
+      "name": "handwritten_number",
+      "label": "Handwritten number",
+      "bbox": [0.78, 0.15, 0.95, 0.25],
+      "kind": "case_code",
+      "docx_tag": "handwritten_number"
+    },
+    {
+      "name": "handwritten_date",
+      "label": "Handwritten date",
+      "bbox": [0.78, 0.36, 0.94, 0.50],
+      "kind": "table_date",
+      "docx_tag": "handwritten_date"
     }
   ]
 }
-

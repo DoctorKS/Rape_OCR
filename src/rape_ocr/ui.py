@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .config import load_patterns
+from .export_mapping import build_docx_export_payload
 from .ocr_service import OcrService, create_ocr_engine
 from .recycling import RecyclingDataset
 from .storage import AppStorage
@@ -145,15 +146,19 @@ def run_gui() -> int:
             )
             if not output_path:
                 return
-            values = {}
             for row, field in enumerate(self.current_job.fields):
                 item = self.table.item(row, 2)
                 field.reviewed_value = item.text() if item is not None else field.prediction
                 field.status = "reviewed"
-                values[field.docx_tag or field.name] = field.final_value
             self.storage.save_job(self.current_job, status="reviewed")
             self.recycling.save_reviewed_job(self.current_job)
-            saved_path = self.templates.fill(Path(template_path), Path(output_path), values)
+            payload = build_docx_export_payload(self.current_job.fields)
+            saved_path = self.templates.fill(
+                Path(template_path),
+                Path(output_path),
+                payload.values,
+                payload.date_values,
+            )
             QMessageBox.information(self, "Exported", f"สร้างเอกสารแล้ว:\n{saved_path}")
 
     app = QApplication([])

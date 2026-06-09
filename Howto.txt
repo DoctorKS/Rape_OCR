@@ -184,3 +184,48 @@ Remove-Item -Recurse -LiteralPath "C:\dev\Rape_OCR\data\recycling\rural_rape\202
 - default เป็น dry-run
 - log ได้ว่า entry ไหนถูกลบ
 - ต่อเข้าหน้า Dataset Manager ในอนาคตได้ง่าย
+
+---
+
+## Mapping ตอน Export DOCX ด้วย prototype.docx
+
+ตอนกด `Export DOCX` ระบบจะเอาค่าหลัง review ไปจับคู่กับ field ใน `prototype.docx` ดังนี้:
+
+| OCR field | DOCX field / placeholder |
+| --- | --- |
+| `patient_name` | `i2` |
+| `hospital` | `i5` |
+| `age` | `i3` |
+| `hn` | `i4` |
+| `collection_date` | calendar control ลำดับที่ 1 ด้านขวาของ `Collection date` |
+| `specimen_regis_date` | calendar control ลำดับที่ 2 ด้านขวาของ `Received date` |
+| `lower_right_handwritten_date` | calendar control ลำดับที่ 3 ด้านขวาของ `Reported date` |
+| `lower_right_handwritten_note` | `i1` |
+| `vaginal_result` | `R1` |
+| `endocervical_result` | `R2` |
+| `r3_result` / `extra_result` / `third_result` | `R3` |
+
+หมายเหตุ:
+
+- ถ้า reviewer ใส่ `-` ในช่อง `Reviewed` field นั้นจะไม่ถูก export และจะถูกจำเป็น skipped field สำหรับรอบถัดไป
+- วันที่ที่อ่านได้เช่น `15 พ.ค. 2569`, `15 พ.0 2569`, หรือ `15/05/2569` จะถูกแปลงเป็นรูปแบบ `15/05/69`
+- `lower_right_handwritten_date` ถ้าอ่านได้เป็นรหัสรูปแบบ `5042/69` ระบบจะคงค่าดิบไว้ให้ reviewer ตรวจ เพราะค่าไม่ได้อยู่ในรูปแบบวันที่ปกติ
+
+### Mapping สำหรับ ppk_rape
+
+สำหรับรูป `S__29351956_0.jpg` หรือ pattern `ppk_rape` ระบบอ่าน field หลักเพิ่มดังนี้:
+
+| OCR field | ตำแหน่งในรูป | DOCX field / placeholder |
+| --- | --- | --- |
+| `vulvar_result` | ตารางผลล่าง รูปที่ 1 แถว Vulvar | `R1` |
+| `vaginal_result` | ตารางผลล่าง รูปที่ 1 แถว Vagina | `R2` |
+| `endocervical_result` | ตารางผลล่าง รูปที่ 1 แถว Endo / Endocervical | `R3` |
+| `handwritten_number` | รูปที่ 2 เลขลายมือด้านขวาบน เช่น `5043/69` | `i1` |
+| `handwritten_date` | รูปที่ 3 วันที่ลายมือ เช่น `4/6/69` | calendar control ลำดับที่ 3 |
+| `patient_name` | รูปที่ 4 ชื่อผู้ป่วย | `i2` |
+| `age` | รูปที่ 4 อายุ | `i3` |
+| `collection_date` | รูปที่ 5 วันที่ตรวจ | calendar control ลำดับที่ 1 |
+| `collection_time` | รูปที่ 5 เวลาที่ตรวจ | `collection_time` / `docx_tag` เดิม |
+| `hn` | รูป HN ด้านบน/ล่าง | `i4` |
+
+สำหรับ `ppk_rape` ค่า `specimen_regis_date` จะใช้ค่าเดียวกับ `collection_date` เสมอ ดังนั้น calendar control ลำดับที่ 2 จะถูกเติมด้วย `collection_date` อัตโนมัติ

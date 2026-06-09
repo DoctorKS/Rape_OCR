@@ -250,3 +250,46 @@ flowchart TD
   เช่น `positive` หรือ `negative`
 - ถ้า reviewer ใส่ `-` ใน `Reviewed` field นั้นจะถูกบันทึกใน `skipped_fields`
   และรอบถัดไปจะไม่ OCR field นั้นใน pattern เดียวกัน
+
+## DOCX Export Mapping
+
+```mermaid
+flowchart TD
+    A["Reviewed OCR fields"] --> B["build_docx_export_payload"]
+    B --> C["Prototype text placeholders"]
+    B --> D["Prototype calendar controls"]
+    B --> E["Existing docx_tag / {{key}} support"]
+
+    C --> C1["patient_name -> i2"]
+    C --> C2["hospital -> i5"]
+    C --> C3["age -> i3"]
+    C --> C4["hn -> i4"]
+    C --> C5["lower_right_handwritten_note -> i1"]
+    C --> C6["vaginal_result -> R1"]
+    C --> C7["endocervical_result -> R2"]
+    C --> C8["r3_result / extra_result / third_result -> R3"]
+    C --> C9["ppk: handwritten_number -> i1"]
+    C --> C10["ppk: vulvar/vaginal/endocervical -> R1/R2/R3"]
+
+    D --> D1["collection_date -> calendar 1"]
+    D --> D2["specimen_regis_date or collection_date -> calendar 2"]
+    D --> D3["lower_right_handwritten_date or handwritten_date -> calendar 3"]
+
+    C --> F["DocxTemplateService"]
+    D --> F
+    E --> F
+    F --> G["Generated DOCX"]
+```
+
+`DocxTemplateService` รองรับการเติมค่า 3 แบบพร้อมกัน:
+
+- `{{field_name}}` placeholder แบบเดิม
+- content control ที่มี `w:tag`
+- text placeholder ใน `prototype.docx` เช่น `i1`, `i2`, `R1`, `R2`, `R3`
+
+สำหรับ calendar control ใน `prototype.docx` ยังไม่มี tag เฉพาะ จึงเติมตามลำดับ control ที่พบใน `word/document.xml`
+โดยวันที่จะถูก normalize เป็น `dd/MM/yy` เมื่ออ่านรูปแบบวันที่ไทยหรือวันที่คั่นด้วย `/` ได้
+
+สำหรับ `ppk_rape` ระบบใช้ protocol เดียวกับ `rural_rape` แต่เปลี่ยน result mapping เป็นลำดับตาราง ppk:
+`vulvar_result -> R1`, `vaginal_result -> R2`, `endocervical_result -> R3` และใช้
+`collection_date` เป็น `specimen_regis_date` อัตโนมัติเมื่อไม่มี field `specimen_regis_date` แยก
