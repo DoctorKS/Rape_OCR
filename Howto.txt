@@ -67,6 +67,13 @@ C:\dev\Rape_OCR\data\recycling\<pattern>\<timestamp_jobid>\metadata.json
 - reviewed value
 - confidence
 
+สำหรับลายมือด้านขวาล่าง ระบบจะพยายาม normalize เป็นรูปแบบ `เลข/ปี` เช่น
+`5042/69` โดยถ้า OCR อ่านปีท้ายไม่ครบ ระบบจะดึงปีท้ายจากวันที่ พ.ศ. ที่อ่านได้ใน
+เอกสาร เช่น `2569` -> `69`
+
+สำหรับช่อง `Hospital` ใน `rural_rape` ระบบอ่านจากแถวตาราง Hospital และใช้ค่า
+default เป็น `โรงพยาบาลนายายอาม` เมื่อ OCR confidence ต่ำหรืออ่านชื่อไม่ชัด
+
 ---
 
 ## จำนวนเอกสารที่ควรสะสมก่อน Train
@@ -90,3 +97,90 @@ C:\dev\Rape_OCR\data\recycling\<pattern>\<timestamp_jobid>\metadata.json
 - แยก train / validation / test
 - export dataset สำหรับ training
 - กันไม่ให้ recycling data ไหลเข้า frozen test set แบบอัตโนมัติ
+
+---
+
+## ลบ Recycling Dataset เก่า
+
+ตรวจรายการ dataset ที่เก่ากว่า 90 วันแบบ dry-run ก่อน:
+
+```powershell
+cd C:\dev\Rape_OCR
+.\.venv\Scripts\python.exe -m rape_ocr.main --cleanup-recycling-days 90
+```
+
+ถ้าตรวจแล้วต้องการลบจริง ให้เพิ่ม `--confirm-delete`:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --cleanup-recycling-days 90 --confirm-delete
+```
+
+ข้อควรระวัง:
+
+- default เป็น dry-run ยังไม่ลบไฟล์จริง
+- ลบเฉพาะ entry ใน `data/recycling`
+- ต้องระบุจำนวนวันอย่างน้อย 1 วัน
+- ห้ามลบ dataset ที่ยังไม่ได้ backup หรือยังไม่ได้ export เป็น train/validation
+
+---
+
+## ลบ Specific Recycling Entry รายตัว
+
+ตอนนี้มีคำสั่งลบตามอายุ dataset และลบ specific entry รายตัวผ่าน CLI แล้ว
+
+### วิธีเลือกดู entry ที่จะลบ
+
+ดู folder ใน recycling:
+
+```powershell
+Get-ChildItem C:\dev\Rape_OCR\data\recycling -Recurse -Directory
+```
+
+โครงสร้างจะประมาณนี้:
+
+```text
+data\recycling\rural_rape\20260609T115856Z_d01b8adcfb8740a8a8acb261b617d65d
+```
+
+ตัวนี้คือ entry เฉพาะหนึ่งรายการ:
+
+```text
+20260609T115856Z_d01b8adcfb8740a8a8acb261b617d65d
+```
+
+### วิธีลบเองแบบ manual ในตอนนี้
+
+ให้ลบทั้ง folder entry นั้น:
+
+```powershell
+Remove-Item -Recurse -LiteralPath "C:\dev\Rape_OCR\data\recycling\rural_rape\20260609T115856Z_d01b8adcfb8740a8a8acb261b617d65d"
+```
+
+ข้อควรระวัง:
+
+- ต้องลบทั้ง folder ของ entry ไม่ใช่ลบเฉพาะ `metadata.json`
+- ตรวจ path ให้แน่ใจว่าอยู่ใต้ `C:\dev\Rape_OCR\data\recycling`
+- ควร backup ก่อนลบ ถ้า entry นั้นยังไม่ได้ export เป็น train/validation
+
+### วิธีลบผ่าน CLI แบบปลอดภัย
+
+ตรวจแบบ dry-run ก่อน:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --delete-recycling-entry rural_rape/20260609T115856Z_d01b8adcfb8740a8a8acb261b617d65d
+```
+
+คำสั่งนี้เป็น dry-run โดย default
+
+ถ้าจะลบจริงต้องเพิ่ม `--confirm-delete`:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --delete-recycling-entry rural_rape/20260609T115856Z_d01b8adcfb8740a8a8acb261b617d65d --confirm-delete
+```
+
+เหตุผลที่ควรใช้ CLI แทนการลบ manual:
+
+- กันพลาดด้วยการบังคับให้ลบได้เฉพาะ path ใต้ `data/recycling`
+- default เป็น dry-run
+- log ได้ว่า entry ไหนถูกลบ
+- ต่อเข้าหน้า Dataset Manager ในอนาคตได้ง่าย

@@ -11,6 +11,15 @@
       "required": true
     },
     {
+      "name": "hospital",
+      "label": "Hospital",
+      "bbox": [0.18, 0.195, 0.50, 0.225],
+      "kind": "hospital_name",
+      "docx_tag": "hospital",
+      "preprocess": "handwriting",
+      "default_value": "โรงพยาบาลนายายอาม"
+    },
+    {
       "name": "age",
       "label": "Age",
       "bbox": [0.66, 0.15, 0.76, 0.20],
@@ -100,17 +109,19 @@
     },
     {
       "name": "lower_right_handwritten_date",
-      "label": "วันที่ลายมือด้านล่างขวา",
-      "bbox": [0.53, 0.895, 0.68, 0.955],
+      "label": "รหัสลายมือด้านล่างขวา",
+      "bbox": [0.78, 0.805, 0.995, 0.895],
+      "kind": "case_code",
       "docx_tag": "lower_right_handwritten_date",
-      "preprocess": "handwriting"
+      "preprocess": "case_code"
     },
     {
       "name": "lower_right_handwritten_note",
       "label": "ลายมือใกล้วันที่ด้านล่างขวา",
-      "bbox": [0.53, 0.925, 0.68, 0.985],
+      "bbox": [0.78, 0.805, 0.995, 0.895],
+      "kind": "case_code",
       "docx_tag": "lower_right_handwritten_note",
-      "preprocess": "handwriting"
+      "preprocess": "case_code"
     },
     {
       "name": "vaginal_result",

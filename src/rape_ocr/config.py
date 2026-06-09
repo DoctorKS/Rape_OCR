@@ -22,6 +22,7 @@ def load_pattern(path: Path) -> PatternConfig:
             required=item.get("required", False),
             expected_pattern=item.get("expected_pattern"),
             preprocess=item.get("preprocess"),
+            default_value=item.get("default_value"),
         )
         for item in data["fields"]
     )

@@ -11,3 +11,9 @@ class ConfigTest(unittest.TestCase):
         self.assertIn("rural_rape", patterns)
         self.assertTrue(patterns["ppk_rape"].fields)
         self.assertTrue(patterns["rural_rape"].fields)
+
+    def test_rural_hospital_has_default_value(self):
+        patterns = load_patterns()
+        hospital = next(field for field in patterns["rural_rape"].fields if field.name == "hospital")
+
+        self.assertEqual(hospital.default_value, "โรงพยาบาลนายายอาม")

@@ -20,6 +20,7 @@ class FieldConfig:
     required: bool = False
     expected_pattern: str | None = None
     preprocess: str | None = None
+    default_value: str | None = None
 
 
 @dataclass(frozen=True)

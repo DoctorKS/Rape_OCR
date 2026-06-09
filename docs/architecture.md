@@ -27,6 +27,10 @@ flowchart TD
     E --> O["Run OCR service"]
     E --> P["Save SQLite job"]
     E --> Q["Save recycling metadata"]
+    B -->|"--cleanup-recycling-days N"| R["Dry-run old recycling cleanup"]
+    R -->|"--confirm-delete"| S["Delete old recycling entries"]
+    B -->|"--delete-recycling-entry pattern/entry"| T["Dry-run one entry delete"]
+    T -->|"--confirm-delete"| U["Delete one recycling entry"]
 ```
 
 ## End-to-End GUI Workflow
@@ -108,18 +112,22 @@ flowchart TD
     G -->|"table_date"| J["Upscale + adaptive threshold\nfor lower table date/time"]
     G -->|"handwriting"| K["Upscale + adaptive threshold\nfor lower handwritten notes"]
     G -->|"result_choice"| L["Upscale + adaptive threshold\nthen normalize result"]
+    G -->|"hospital_name"| Z["Read Hospital table\nnormalize/default to known hospital"]
     H --> M["PaddleOCR prediction"]
     J --> M
     K --> M
     L --> M
+    Z --> M
     I --> N["checked / unchecked"]
     X --> S["FieldResult"]
     M --> O["raw_prediction"]
     O --> P{"special normalize"}
     P -->|"result_choice"| Q["positive / negative"]
+    P -->|"case_code"| Y["normalize เป็นเลข/YY\nเช่น SO42 + 2569 -> 5042/69"]
     P -->|"normal field"| R["prediction = raw_prediction"]
     N --> S["FieldResult"]
     Q --> S
+    Y --> S
     R --> S
 ```
 
@@ -226,6 +234,10 @@ flowchart TD
     A --> E["output/generated.docx\nหรือ path ที่ user เลือก"]
     A --> F["docs/example/\nlocal-only sample files"]
     F -. "ignored by git" .-> G["ไม่ push ขึ้น remote"]
+    C --> H["cleanup_old_entries(days)\ndry-run by default"]
+    H --> I["delete only with --confirm-delete"]
+    C --> J["delete_entry(pattern/entry)\ndry-run by default"]
+    J --> K["delete only with --confirm-delete"]
 ```
 
 ## ขอบเขตข้อมูลที่ต้องระวัง

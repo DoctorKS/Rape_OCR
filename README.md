@@ -193,6 +193,30 @@ log เต็มให้เพิ่ม `--verbose-ocr`:
 .\.venv\Scripts\python.exe -m rape_ocr.main --sample docs\example\S__29351955_0.jpg --placeholder-ocr
 ```
 
+ตรวจรายการ recycling dataset ที่เก่ากว่า 90 วันแบบ dry-run:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --cleanup-recycling-days 90
+```
+
+ลบจริงต้องเพิ่ม `--confirm-delete` เท่านั้น:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --cleanup-recycling-days 90 --confirm-delete
+```
+
+ลบ recycling entry รายตัวแบบ dry-run:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --delete-recycling-entry rural_rape/20260609T115856Z_d01b8adcfb8740a8a8acb261b617d65d
+```
+
+ลบรายตัวจริงต้องเพิ่ม `--confirm-delete`:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --delete-recycling-entry rural_rape/20260609T115856Z_d01b8adcfb8740a8a8acb261b617d65d --confirm-delete
+```
+
 หมายเหตุ: PaddleOCR จะดาวน์โหลดโมเดลครั้งแรกลงใน cache ของผู้ใช้ เช่น
 `C:\Users\User\.paddlex\official_models`
 

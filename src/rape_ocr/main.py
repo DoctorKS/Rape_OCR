@@ -26,7 +26,45 @@ def main() -> int:
         action="store_true",
         help="show PaddleOCR/Paddle model logs",
     )
+    parser.add_argument(
+        "--cleanup-recycling-days",
+        type=int,
+        help="list or delete recycling dataset entries older than this many days",
+    )
+    parser.add_argument(
+        "--delete-recycling-entry",
+        help="delete one recycling entry by relative path, e.g. rural_rape/20260609T000000Z_jobid",
+    )
+    parser.add_argument(
+        "--confirm-delete",
+        action="store_true",
+        help="actually delete recycling entries; without this flag deletion commands are dry-run only",
+    )
     args = parser.parse_args()
+
+    if args.cleanup_recycling_days is not None:
+        result = RecyclingDataset(Path("data/recycling")).cleanup_old_entries(
+            older_than_days=args.cleanup_recycling_days,
+            dry_run=not args.confirm_delete,
+        )
+        action = "would_delete" if result.dry_run else "deleted"
+        print(f"cutoff={result.cutoff.isoformat()}Z")
+        print(f"mode={'dry-run' if result.dry_run else 'delete'}")
+        print(f"matched={len(result.matched_dirs)}")
+        print(f"{action}={len(result.deleted_dirs) if not result.dry_run else len(result.matched_dirs)}")
+        for path in result.deleted_dirs if not result.dry_run else result.matched_dirs:
+            print(path)
+        return 0
+
+    if args.delete_recycling_entry:
+        result = RecyclingDataset(Path("data/recycling")).delete_entry(
+            args.delete_recycling_entry,
+            dry_run=not args.confirm_delete,
+        )
+        print(f"mode={'dry-run' if result.dry_run else 'delete'}")
+        print(f"entry={result.entry_dir}")
+        print(f"deleted={result.deleted}")
+        return 0
 
     if args.gui:
         return run_gui()

@@ -1,6 +1,12 @@
 import unittest
 
-from rape_ocr.ocr_service import PlaceholderOcrEngine, _normalize_result_choice, create_ocr_engine
+from rape_ocr.ocr_service import (
+    PlaceholderOcrEngine,
+    _normalize_case_code,
+    _normalize_hospital_name,
+    _normalize_result_choice,
+    create_ocr_engine,
+)
 
 
 class OcrEngineTest(unittest.TestCase):
@@ -15,3 +21,14 @@ class OcrEngineTest(unittest.TestCase):
         self.assertEqual(_normalize_result_choice("neg."), "negative")
         self.assertEqual(_normalize_result_choice("Present"), "positive")
         self.assertEqual(_normalize_result_choice("positive"), "positive")
+
+    def test_normalize_case_code(self):
+        self.assertEqual(_normalize_case_code("S042/69"), "5042/69")
+        self.assertEqual(_normalize_case_code("5042/69"), "5042/69")
+        self.assertEqual(_normalize_case_code("SO42|69"), "5042/69")
+        self.assertEqual(_normalize_case_code("SO42", default_year="69"), "5042/69")
+        self.assertEqual(_normalize_case_code("S042/", default_year="69"), "5042/69")
+
+    def test_normalize_hospital_name(self):
+        self.assertEqual(_normalize_hospital_name("โรงพยาบาลนายาอาม"), "โรงพยาบาลนายายอาม")
+        self.assertEqual(_normalize_hospital_name("นายายอาม"), "โรงพยาบาลนายายอาม")

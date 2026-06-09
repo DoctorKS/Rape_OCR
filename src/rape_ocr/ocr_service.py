@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -197,11 +198,9 @@ class OcrService:
             else:
                 ocr_image = self._prepare_ocr_crop(crop, config.preprocess or config.kind)
                 raw_prediction, confidence = self.engine.recognize(ocr_image if ocr_image is not None else image)
-                prediction = (
-                    _normalize_result_choice(raw_prediction)
-                    if config.kind == "result_choice"
-                    else raw_prediction
-                )
+                prediction = _normalize_field_prediction(config.kind, raw_prediction)
+                if config.default_value and (not prediction.strip() or confidence < 0.6):
+                    prediction = config.default_value
             fields.append(
                 FieldResult(
                     name=config.name,
@@ -214,6 +213,7 @@ class OcrService:
                     raw_prediction=raw_prediction,
                 )
             )
+        self._postprocess_fields(fields)
         return OcrJob(image_path=image_path, pattern_name=pattern.name, fields=fields)
 
     @staticmethod
@@ -243,7 +243,7 @@ class OcrService:
         cv2 = _load_cv2()
         if cv2 is None:
             return crop
-        if mode in {"handwriting", "result_choice", "table_date"}:
+        if mode in {"handwriting", "result_choice", "table_date", "case_code"}:
             scale = 3 if mode == "result_choice" else 4
             enlarged = cv2.resize(crop, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
             gray = cv2.cvtColor(enlarged, cv2.COLOR_BGR2GRAY)
@@ -258,6 +258,10 @@ class OcrService:
             return cv2.cvtColor(threshold, cv2.COLOR_GRAY2BGR)
         return crop
 
+    @staticmethod
+    def _postprocess_fields(fields: list[FieldResult]) -> None:
+        _postprocess_case_code_fields(fields)
+
 
 def _normalize_result_choice(text: str) -> str:
     normalized = text.strip().lower()
@@ -269,3 +273,85 @@ def _normalize_result_choice(text: str) -> str:
     if any(token in compact for token in positive_tokens):
         return "positive"
     return text.strip()
+
+
+def _normalize_field_prediction(kind: str, raw_prediction: str) -> str:
+    if kind == "result_choice":
+        return _normalize_result_choice(raw_prediction)
+    if kind == "case_code":
+        return _normalize_case_code(raw_prediction)
+    if kind == "hospital_name":
+        return _normalize_hospital_name(raw_prediction)
+    return raw_prediction
+
+
+def _normalize_case_code(text: str, default_year: str | None = None) -> str:
+    raw = text.strip().upper()
+    raw = raw.replace(" ", "")
+    raw = raw.replace("\\", "/").replace("|", "/")
+    raw = raw.replace("O", "0").replace("Q", "0")
+    raw = raw.replace("I", "1").replace("L", "1")
+    raw = raw.replace("Z", "2")
+    raw = raw.replace("S", "5")
+    match = re.search(r"([A-Z]?\d{2,4})/(\d{2})", raw)
+    if match:
+        return f"{match.group(1)}/{match.group(2)}"
+    prefix_match = re.search(r"([A-Z]?\d{2,4})/?$", raw)
+    if prefix_match and default_year:
+        return f"{prefix_match.group(1)}/{default_year}"
+    digits = re.findall(r"\d", raw)
+    if len(digits) >= 5:
+        prefix = "".join(digits[:-2])
+        year = "".join(digits[-2:])
+        return f"{prefix}/{year}"
+    if 3 <= len(digits) <= 4 and default_year:
+        return f"{''.join(digits)}/{default_year}"
+    return text.strip()
+
+
+def _normalize_hospital_name(text: str) -> str:
+    compact = re.sub(r"\s+", "", text.strip())
+    if not compact:
+        return ""
+    known_values = {
+        "นายายอาม": "โรงพยาบาลนายายอาม",
+        "นายาอาม": "โรงพยาบาลนายายอาม",
+        "นยายอาม": "โรงพยาบาลนายายอาม",
+        "นายยอาม": "โรงพยาบาลนายายอาม",
+        "ชายอาม": "โรงพยาบาลนายายอาม",
+        "ยอาม": "โรงพยาบาลนายายอาม",
+    }
+    for token, value in known_values.items():
+        if token in compact:
+            return value
+    if compact.startswith("โรงพยาบาล"):
+        return compact
+    return text.strip()
+
+
+def _infer_buddhist_year_suffix(fields: list[FieldResult]) -> str | None:
+    for field in fields:
+        candidates = [field.prediction, field.raw_prediction or ""]
+        for value in candidates:
+            match = re.search(r"25(\d{2})", value)
+            if match:
+                return match.group(1)
+    return None
+
+
+def _looks_like_incomplete_case_code(value: str) -> bool:
+    compact = value.strip().upper().replace(" ", "")
+    if re.search(r"/\d{2}$", compact):
+        return False
+    return bool(re.search(r"[A-Z]?\d{2,4}/?$", compact))
+
+
+def _postprocess_case_code_fields(fields: list[FieldResult]) -> None:
+    year = _infer_buddhist_year_suffix(fields)
+    if not year:
+        return
+    for field in fields:
+        if field.kind == "case_code" and _looks_like_incomplete_case_code(field.prediction):
+            field.prediction = _normalize_case_code(field.raw_prediction or field.prediction, default_year=year)
+            if field.reviewed_value is None:
+                field.reviewed_value = None
