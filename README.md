@@ -132,6 +132,9 @@ promotion เพื่อเลือกว่าจะเข้า train, valid
   crop, template, generated document และ model version
 
 ดู flow chart และ Mermaid diagram เพิ่มเติมได้ที่ [docs/architecture.md](docs/architecture.md)
+ไฟล์นี้ครอบคลุม flow ปัจจุบันทั้งหมดของ app ได้แก่ GUI, CLI, Local API,
+PaddleOCR/fallback, DOCX export, recycling dataset, และ field ล่างของ
+`rural_rape`
 
 ## วิธีรัน MVP
 
