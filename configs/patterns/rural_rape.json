@@ -6,8 +6,21 @@
     {
       "name": "patient_name",
       "label": "Name",
-      "bbox": [0.18, 0.15, 0.55, 0.20],
+      "bbox": [0.18, 0.15, 0.62, 0.20],
       "docx_tag": "patient_name",
+      "required": true
+    },
+    {
+      "name": "age",
+      "label": "Age",
+      "bbox": [0.68, 0.15, 0.77, 0.20],
+      "docx_tag": "age"
+    },
+    {
+      "name": "hn",
+      "label": "HN",
+      "bbox": [0.83, 0.15, 0.97, 0.20],
+      "docx_tag": "hn",
       "required": true
     },
     {
@@ -16,27 +29,21 @@
       "bbox": [0.18, 0.195, 0.50, 0.225],
       "kind": "hospital_name",
       "docx_tag": "hospital",
-      "preprocess": "handwriting",
-      "default_value": "โรงพยาบาลนายายอาม"
-    },
-    {
-      "name": "age",
-      "label": "Age",
-      "bbox": [0.66, 0.15, 0.76, 0.20],
-      "docx_tag": "age"
-    },
-    {
-      "name": "hn",
-      "label": "HN",
-      "bbox": [0.83, 0.14, 0.96, 0.20],
-      "docx_tag": "hn",
-      "required": true
+      "default_value": "โรงพยาบาลพระปกเกล้า",
+      "preprocess": "handwriting"
     },
     {
       "name": "collection_date",
       "label": "Date of specimen collection",
-      "bbox": [0.45, 0.22, 0.66, 0.27],
+      "bbox": [0.45, 0.22, 0.68, 0.27],
       "docx_tag": "collection_date"
+    },
+    {
+      "name": "collection_time",
+      "label": "Time",
+      "bbox": [0.80, 0.22, 0.97, 0.27],
+      "docx_tag": "collection_time",
+      "preprocess": "handwriting"
     },
     {
       "name": "vaginal_penetration",

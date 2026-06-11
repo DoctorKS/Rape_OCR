@@ -33,3 +33,5 @@ class OcrEngineTest(unittest.TestCase):
     def test_normalize_hospital_name(self):
         self.assertEqual(_normalize_hospital_name("โรงพยาบาลนายาอาม"), "โรงพยาบาลนายายอาม")
         self.assertEqual(_normalize_hospital_name("นายายอาม"), "โรงพยาบาลนายายอาม")
+        self.assertEqual(_normalize_hospital_name("รพ.พระปกเกล้า"), "โรงพยาบาลพระปกเกล้า")
+        self.assertEqual(_normalize_hospital_name("พระปกเกล้า"), "โรงพยาบาลพระปกเกล้า")
