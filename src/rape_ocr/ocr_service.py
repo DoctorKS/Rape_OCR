@@ -512,7 +512,7 @@ def _normalize_named_field_prediction(
             return default_value or ""
         return value
     if field_name == "collection_date":
-        return _normalize_slash_year(source)
+        return _normalize_text_date(source)
     if field_name in {"collection_time", "handwritten_date"}:
         return _normalize_dot_number(source)
     if field_name == "handwritten_number":
@@ -541,17 +541,11 @@ def _thai_text_only(text: str) -> str:
     return " ".join(re.findall(r"[\u0e00-\u0e7f]+", text.strip()))
 
 
-def _normalize_slash_year(text: str) -> str:
+def _normalize_text_date(text: str) -> str:
     normalized = _translate_thai_digits(text)
-    year_match = re.search(r"25(\d{2})", normalized)
-    if year_match:
-        before_year = normalized[: year_match.start()]
-        day_matches = re.findall(r"\d+", before_year)
-        if day_matches:
-            return f"{day_matches[0]}/{year_match.group(1)}"
-    slash_match = re.search(r"(\d+)\s*/\s*(?:\d+\s*/\s*)?(\d{2})(?!\d)", normalized)
-    if slash_match:
-        return f"{slash_match.group(1)}/{slash_match.group(2)}"
+    match = re.search(r"(\d+)\s+([A-Za-z\u0e00-\u0e7f.]+)\s+(\d+)", normalized)
+    if match:
+        return f"{match.group(1)} {match.group(2)} {match.group(3)}"
     return ""
 
 

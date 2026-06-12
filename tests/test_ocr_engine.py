@@ -65,11 +65,11 @@ class OcrEngineTest(unittest.TestCase):
         )
         self.assertEqual(
             _normalize_named_field_prediction("rural_rape", "collection_date", "text", "18 พฤษภาคม 2569", "18 พฤษภาคม 2569"),
-            "18/69",
+            "18 พฤษภาคม 2569",
         )
         self.assertEqual(
             _normalize_named_field_prediction("rural_rape", "collection_date", "text", "18/05/2569", "18/05/2569"),
-            "18/69",
+            "",
         )
         self.assertEqual(
             _normalize_named_field_prediction("rural_rape", "collection_time", "text", "เวลา 21.00 น.", "เวลา 21.00 น."),
