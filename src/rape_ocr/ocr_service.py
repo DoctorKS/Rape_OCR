@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import os
 import re
 import sys
@@ -12,6 +13,9 @@ from .domain import AnchorConfig, BBox, FieldResult, OcrJob, PatternConfig
 
 
 PageText = tuple[str, BBox, float]
+PATTERN_HEADER_RATIO = 0.35
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_OCR_MODEL_CONFIG = PROJECT_ROOT / "configs" / "ocr_models.json"
 
 
 def _load_cv2():
@@ -44,10 +48,16 @@ class PlaceholderOcrEngine(OcrEngine):
 class PaddleOcrEngine(OcrEngine):
     name = "paddleocr"
 
-    def __init__(self, lang: str = "th", verbose: bool = False) -> None:
+    def __init__(
+        self,
+        lang: str = "th",
+        verbose: bool = False,
+        model_config_path: Path | None = None,
+    ) -> None:
         self.verbose = verbose
         os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
         os.environ.setdefault("GLOG_minloglevel", "2")
+        self.model_options = _load_ocr_model_options(model_config_path)
         with _quiet_external_output(enabled=not verbose):
             try:
                 from paddleocr import PaddleOCR
@@ -55,7 +65,7 @@ class PaddleOcrEngine(OcrEngine):
                 raise RuntimeError(
                     "PaddleOCR is not installed. Install optional dependencies first."
                 ) from exc
-            self._ocr = PaddleOCR(use_angle_cls=True, lang=lang)
+            self._ocr = PaddleOCR(use_angle_cls=True, lang=lang, **self.model_options)
 
     def recognize(self, image) -> tuple[str, float]:
         with _quiet_external_output(enabled=not self.verbose):
@@ -155,6 +165,8 @@ def _extract_page_text_items(result: Any, width: int, height: int) -> list[PageT
     items: list[PageText] = []
 
     def normalize_box(box: Any) -> BBox | None:
+        if hasattr(box, "tolist"):
+            box = box.tolist()
         if not isinstance(box, (list, tuple)) or not box:
             return None
         try:
@@ -188,8 +200,10 @@ def _extract_page_text_items(result: Any, width: int, height: int) -> list[PageT
             return
         if isinstance(value, dict):
             texts = value.get("rec_texts") or value.get("texts")
-            boxes = value.get("rec_boxes") or value.get("dt_polys") or value.get("boxes")
+            boxes = _first_present(value, "rec_boxes", "dt_polys", "boxes")
             scores = value.get("rec_scores") or value.get("scores") or []
+            if hasattr(boxes, "tolist"):
+                boxes = boxes.tolist()
             if isinstance(texts, list) and isinstance(boxes, list):
                 for index, text in enumerate(texts):
                     score = scores[index] if isinstance(scores, list) and index < len(scores) else 0.0
@@ -222,22 +236,99 @@ def _extract_page_text_items(result: Any, width: int, height: int) -> list[PageT
     return items
 
 
-def create_ocr_engine(prefer_paddle: bool = True, verbose: bool = False) -> OcrEngine:
+def create_ocr_engine(
+    prefer_paddle: bool = True,
+    verbose: bool = False,
+    model_config_path: Path | None = None,
+) -> OcrEngine:
     if not prefer_paddle:
         return PlaceholderOcrEngine()
     try:
-        return PaddleOcrEngine(verbose=verbose)
+        return PaddleOcrEngine(verbose=verbose, model_config_path=model_config_path)
     except RuntimeError:
         return PlaceholderOcrEngine()
 
 
-def _find_anchor_item(page_items: list[PageText], anchor: AnchorConfig) -> PageText | None:
+def _load_ocr_model_options(
+    config_path: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> dict[str, str]:
+    source_env = env if env is not None else os.environ
+    selected_config = Path(
+        source_env.get("RAPE_OCR_MODEL_CONFIG", str(config_path or DEFAULT_OCR_MODEL_CONFIG))
+    )
+    options = _read_ocr_model_config(selected_config)
+    env_overrides = {
+        "text_recognition_model_dir": source_env.get("RAPE_OCR_REC_MODEL_DIR", ""),
+        "text_detection_model_dir": source_env.get("RAPE_OCR_DET_MODEL_DIR", ""),
+        "textline_orientation_model_dir": source_env.get("RAPE_OCR_TEXTLINE_MODEL_DIR", ""),
+    }
+    for key, value in env_overrides.items():
+        if value:
+            options[key] = value
+    return {key: value for key, value in options.items() if value}
+
+
+def _read_ocr_model_config(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return {}
+    aliases = {
+        "rec_model_dir": "text_recognition_model_dir",
+        "det_model_dir": "text_detection_model_dir",
+    }
+    options: dict[str, str] = {}
+    for key in (
+        "text_recognition_model_dir",
+        "text_detection_model_dir",
+        "textline_orientation_model_dir",
+        "rec_model_dir",
+        "det_model_dir",
+    ):
+        value = data.get(key)
+        if value is None:
+            continue
+        normalized_key = aliases.get(key, key)
+        text = str(value).strip()
+        if text:
+            options[normalized_key] = text
+    return options
+
+
+def _first_present(value: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in value and value[key] is not None:
+            return value[key]
+    return None
+
+
+def _find_anchor_item(
+    page_items: list[PageText],
+    anchor: AnchorConfig,
+    preferred_bbox: BBox | None = None,
+) -> PageText | None:
     wanted = [_normalize_anchor_text(text) for text in anchor.texts]
+    matches: list[PageText] = []
     for item in page_items:
         normalized = _normalize_anchor_text(item[0])
         if any(token and token in normalized for token in wanted):
-            return item
-    return None
+            matches.append(item)
+    if not matches:
+        return None
+    if preferred_bbox is None:
+        return matches[0]
+    target_x = (preferred_bbox[0] + preferred_bbox[2]) / 2
+    target_y = (preferred_bbox[1] + preferred_bbox[3]) / 2
+
+    def distance(item: PageText) -> float:
+        bbox = item[1]
+        x = (bbox[0] + bbox[2]) / 2
+        y = (bbox[1] + bbox[3]) / 2
+        return ((x - target_x) ** 2) + ((y - target_y) ** 2)
+
+    return min(matches, key=distance)
 
 
 def _normalize_anchor_text(text: str) -> str:
@@ -279,6 +370,136 @@ def _clamp_bbox(bbox: BBox) -> BBox:
     return left, top, right, bottom
 
 
+def _deskew_image(image, max_degrees: float = 8.0):
+    cv2 = _load_cv2()
+    if cv2 is None or image is None:
+        return image
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+    lines = cv2.HoughLinesP(
+        edges,
+        rho=1,
+        theta=3.141592653589793 / 180,
+        threshold=120,
+        minLineLength=max(40, image.shape[1] // 4),
+        maxLineGap=20,
+    )
+    if lines is None:
+        return image
+    angles: list[float] = []
+    for line in lines[:80]:
+        x1, y1, x2, y2 = line[0]
+        dx = x2 - x1
+        dy = y2 - y1
+        if dx == 0:
+            continue
+        angle = cv2.fastAtan2(float(dy), float(dx))
+        if angle > 90:
+            angle -= 180
+        if abs(angle) <= max_degrees:
+            angles.append(float(angle))
+    if len(angles) < 3:
+        return image
+    angles.sort()
+    angle = angles[len(angles) // 2]
+    if abs(angle) < 0.25 or abs(angle) > max_degrees:
+        return image
+    height, width = image.shape[:2]
+    matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
+    return cv2.warpAffine(
+        image,
+        matrix,
+        (width, height),
+        flags=cv2.INTER_CUBIC,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
+
+
+def _layout_prediction_for_field(
+    pattern_name: str,
+    field_name: str,
+    page_items: list[PageText],
+) -> tuple[str, float] | None:
+    if pattern_name != "rural_rape" or field_name not in {
+        "patient_name",
+        "age",
+        "hn",
+        "hospital",
+        "collection_date",
+        "collection_time",
+    }:
+        return None
+    items = [item for item in page_items if item[1][1] < 0.28]
+    if field_name == "patient_name":
+        return _layout_value_after_label(items, "name", max_y_delta=0.02, max_x=0.55)
+    if field_name == "hospital":
+        return _layout_value_after_label(items, "hospital", max_y_delta=0.02, max_x=0.48)
+    if field_name == "age":
+        return _layout_regex_value(items, r"\bage\s*[:：]?\s*([0-9]{1,3})")
+    if field_name == "hn":
+        return _layout_regex_value(items, r"\bhn\s*[:：]?\s*([0-9]{3,})")
+    if field_name == "collection_time":
+        return _layout_regex_value(items, r"\btime\s*[:：]?\s*([0-9]{1,2}\s*[.]\s*[0-9]{2})")
+    if field_name == "collection_date":
+        return _layout_collection_date(items)
+    return None
+
+
+def _layout_value_after_label(
+    items: list[PageText],
+    label: str,
+    max_y_delta: float,
+    max_x: float,
+) -> tuple[str, float] | None:
+    label_item = _find_layout_label(items, label)
+    if label_item is None:
+        return None
+    _text, bbox, _score = label_item
+    candidates = [
+        item
+        for item in items
+        if item[1][0] >= bbox[2] - 0.02
+        and item[1][0] <= max_x
+        and abs(_bbox_center_y(item[1]) - _bbox_center_y(bbox)) <= max_y_delta
+    ]
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[1][0])
+    text = " ".join(item[0] for item in candidates)
+    confidence = sum(item[2] for item in candidates) / len(candidates)
+    return text, confidence
+
+
+def _find_layout_label(items: list[PageText], label: str) -> PageText | None:
+    wanted = _normalize_anchor_text(label)
+    for item in items:
+        normalized = _normalize_anchor_text(item[0])
+        if normalized.startswith(wanted):
+            return item
+    return None
+
+
+def _layout_regex_value(items: list[PageText], pattern: str) -> tuple[str, float] | None:
+    regex = re.compile(pattern, flags=re.IGNORECASE)
+    for text, _bbox, score in items:
+        match = regex.search(text)
+        if match:
+            return match.group(1), score
+    return None
+
+
+def _layout_collection_date(items: list[PageText]) -> tuple[str, float] | None:
+    for text, _bbox, score in items:
+        normalized = _normalize_anchor_text(text)
+        if "dateofspecimencollection" in normalized:
+            return text, score
+    return _layout_regex_value(items, r"\bdate\s*[:：]?\s*([0-9]{1,2}\s*[^\s0-9]+\s*[0-9]{2,4})")
+
+
+def _bbox_center_y(bbox: BBox) -> float:
+    return (bbox[1] + bbox[3]) / 2
+
+
 class OcrService:
     def __init__(self, patterns: dict[str, PatternConfig], engine: OcrEngine | None = None) -> None:
         self.patterns = patterns
@@ -301,7 +522,7 @@ class OcrService:
         if image is None:
             return None
         height, _width = image.shape[:2]
-        header = image[: max(1, round(height * 0.20)), :]
+        header = image[: max(1, round(height * PATTERN_HEADER_RATIO)), :]
         try:
             page_items = self.engine.recognize_layout(header)
         except Exception:
@@ -310,6 +531,11 @@ class OcrService:
         if not text:
             try:
                 text, _confidence = self.engine.recognize(header)
+            except Exception:
+                text = ""
+        if not text:
+            try:
+                text, _confidence = self.engine.recognize(image)
             except Exception:
                 text = ""
         return _detect_pattern_from_text(text)
@@ -325,6 +551,7 @@ class OcrService:
         if image is None:
             width, height = 1, 1
         else:
+            image = self._prepare_page_image(image)
             height, width = image.shape[:2]
         selected_pattern = pattern_name or self.detect_pattern(image_path)
         pattern = self.patterns[selected_pattern]
@@ -364,7 +591,7 @@ class OcrService:
                 )
                 continue
             crop = (
-                self._crop_from_anchor(image, config.anchor, page_items, width, height)
+                self._crop_from_anchor(image, config.anchor, page_items, width, height, config.bbox)
                 if image is not None and config.anchor is not None
                 else None
             )
@@ -376,6 +603,9 @@ class OcrService:
             else:
                 ocr_image = self._prepare_ocr_crop(crop, config.preprocess or config.kind)
                 raw_prediction, confidence = self.engine.recognize(ocr_image if ocr_image is not None else image)
+                layout_prediction = _layout_prediction_for_field(pattern.name, config.name, page_items)
+                if layout_prediction is not None:
+                    raw_prediction, confidence = layout_prediction
                 prediction = _normalize_field_prediction(config.kind, raw_prediction)
                 prediction = _normalize_named_field_prediction(
                     pattern.name,
@@ -411,6 +641,14 @@ class OcrService:
         y2 = max(y1 + 1, min(height, round(bottom * height)))
         return image[y1:y2, x1:x2]
 
+    @staticmethod
+    def _prepare_page_image(image):
+        cv2 = _load_cv2()
+        if cv2 is None or image is None:
+            return image
+        deskewed = _deskew_image(image, max_degrees=8.0)
+        return deskewed if deskewed is not None else image
+
     def _recognize_page_layout(self, image, pattern: PatternConfig) -> list[PageText]:
         if not any(field.anchor is not None for field in pattern.fields):
             return []
@@ -426,8 +664,9 @@ class OcrService:
         page_items: list[PageText],
         width: int,
         height: int,
+        preferred_bbox: BBox | None = None,
     ):
-        item = _find_anchor_item(page_items, anchor)
+        item = _find_anchor_item(page_items, anchor, preferred_bbox=preferred_bbox)
         if item is None:
             return None
         bbox = _bbox_from_anchor(item[1], anchor)
@@ -474,12 +713,12 @@ class OcrService:
 def _normalize_result_choice(text: str) -> str:
     normalized = text.strip().lower()
     compact = normalized.replace(" ", "").replace(".", "")
-    positive_tokens = ("positive", "pos", "present", "pres", "+", "พบ")
-    negative_tokens = ("negative", "neg", "nega", "negati", "absent", "abs", "-", "ไม่พบ")
+    positive_tokens = ("positive", "pos", "presence", "present", "pres", "+", "พบ")
+    negative_tokens = ("negative", "neg", "nega", "negati", "absence", "absent", "abs", "-", "ไม่พบ")
     if any(token in compact for token in negative_tokens):
-        return "negative"
+        return "Absence"
     if any(token in compact for token in positive_tokens):
-        return "positive"
+        return "Presence"
     return ""
 
 
@@ -531,6 +770,11 @@ def _detect_pattern_from_text(text: str) -> str | None:
         "โรงพยาบาลพรปกเกล้า",
         "รพ.พรปกเกล้า",
         "รพพรปกเกล้า",
+        "พระปกกล้า",
+        "รพ.พระปกกล้า",
+        "รพพระปกกล้า",
+        "tw.พระปกกล้า",
+        "twพระปกกล้า",
     )
     if any(_normalize_anchor_text(token) in normalized for token in ppk_header_tokens):
         return "ppk_rape"

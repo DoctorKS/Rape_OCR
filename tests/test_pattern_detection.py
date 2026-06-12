@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from rape_ocr.config import load_patterns
-from rape_ocr.ocr_service import OcrEngine, OcrService
+from rape_ocr.ocr_service import OcrEngine, OcrService, PATTERN_HEADER_RATIO
 
 
 class LayoutTextEngine(OcrEngine):
@@ -17,6 +17,16 @@ class LayoutTextEngine(OcrEngine):
 
     def recognize_layout(self, image):
         return [(self.text, (0.0, 0.0, 1.0, 1.0), 0.9)]
+
+
+class CaptureShapeEngine(LayoutTextEngine):
+    def __init__(self, text: str) -> None:
+        super().__init__(text)
+        self.seen_shape = None
+
+    def recognize_layout(self, image):
+        self.seen_shape = image.shape
+        return super().recognize_layout(image)
 
 
 class PatternDetectionTest(unittest.TestCase):
@@ -38,8 +48,16 @@ class PatternDetectionTest(unittest.TestCase):
 
         self.assertEqual(service.detect_pattern(image_path), "rural_rape")
 
+    def test_pattern_detection_scans_upper_form_area(self):
+        image_path = self.write_minimal_jpeg("unknown.jpg", height=100)
+        engine = CaptureShapeEngine("รพ.พระปกเกล้า")
+        service = OcrService(load_patterns(), engine=engine)
+
+        self.assertEqual(service.detect_pattern(image_path), "ppk_rape")
+        self.assertEqual(engine.seen_shape[0], round(100 * PATTERN_HEADER_RATIO))
+
     @staticmethod
-    def write_minimal_jpeg(name: str) -> Path:
+    def write_minimal_jpeg(name: str, height: int = 12) -> Path:
         try:
             import cv2
             import numpy as np
@@ -47,6 +65,6 @@ class PatternDetectionTest(unittest.TestCase):
             raise unittest.SkipTest("OpenCV/numpy is required for image pattern detection test") from exc
         root = Path(tempfile.mkdtemp())
         image_path = root / name
-        image = np.full((12, 12, 3), 255, dtype=np.uint8)
+        image = np.full((height, 12, 3), 255, dtype=np.uint8)
         cv2.imwrite(str(image_path), image)
         return image_path

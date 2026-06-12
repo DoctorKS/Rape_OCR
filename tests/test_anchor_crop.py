@@ -26,6 +26,18 @@ class AnchorCropTest(unittest.TestCase):
         self.assertIsNotNone(found)
         self.assertEqual(found[0], "H.N.")
 
+    def test_prefers_anchor_item_near_fallback_bbox(self):
+        items = [
+            ("Date:", (0.2, 0.4, 0.25, 0.43), 0.9),
+            ("Date:", (0.45, 0.22, 0.50, 0.25), 0.9),
+        ]
+        anchor = AnchorConfig(texts=("Date",), side="right", width=0.2)
+
+        found = _find_anchor_item(items, anchor, preferred_bbox=(0.45, 0.22, 0.68, 0.27))
+
+        self.assertIsNotNone(found)
+        self.assertEqual(found[1], (0.45, 0.22, 0.50, 0.25))
+
     def test_builds_right_side_bbox_from_anchor(self):
         anchor = AnchorConfig(
             texts=("HN",),

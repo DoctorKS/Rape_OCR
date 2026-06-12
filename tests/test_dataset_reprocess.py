@@ -72,7 +72,7 @@ class DatasetReprocessTest(unittest.TestCase):
             new_entry = next(item for item in entries if item.metadata_path != source_metadata)
             fields = {item["name"]: item for item in new_entry.payload["fields"]}
             self.assertEqual(fields["patient_name"]["reviewed_value"], "reviewed name")
-            self.assertEqual(fields["vaginal_result"]["reviewed_value"], "negative")
+            self.assertEqual(fields["vaginal_result"]["reviewed_value"], "Absence")
             self.assertEqual(new_entry.payload["reprocess"]["source_metadata"], str(source_metadata))
 
 

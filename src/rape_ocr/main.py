@@ -9,6 +9,7 @@ from .dataset_reprocess import DatasetReprocessor
 from .ocr_service import OcrService, create_ocr_engine
 from .recycling import RecyclingDataset
 from .storage import AppStorage
+from .training import fine_tune_from_dataset, reviewed_dataset_output_dir
 from .ui import run_gui
 
 
@@ -59,7 +60,135 @@ def main() -> int:
         action="store_true",
         help="write new recycling entries during reprocess; without this flag it is dry-run only",
     )
+    parser.add_argument(
+        "--prepare-finetune-dataset",
+        type=Path,
+        help="export reviewed recycling crops and labels for PaddleOCR fine-tuning",
+    )
+    parser.add_argument(
+        "--train-reviewed-dataset",
+        action="store_true",
+        help="prepare all reviewed recycling data for fine-tuning, then optionally train/export",
+    )
+    parser.add_argument(
+        "--finetune-pattern",
+        help="limit fine-tune dataset export to one pattern, e.g. rural_rape",
+    )
+    parser.add_argument(
+        "--finetune-fields",
+        help="comma-separated field names to include in fine-tune dataset",
+    )
+    parser.add_argument(
+        "--finetune-validation-every",
+        type=int,
+        default=5,
+        help="put every Nth labeled crop into validation set",
+    )
+    parser.add_argument(
+        "--paddleocr-train-config",
+        type=Path,
+        help="PaddleOCR train config path; when provided, prints or runs the train command",
+    )
+    parser.add_argument(
+        "--paddleocr-source-dir",
+        type=Path,
+        help="PaddleOCR source checkout containing tools/train.py and tools/export_model.py",
+    )
+    parser.add_argument(
+        "--finetune-gpus",
+        default="-1",
+        help="GPU ids for paddle.distributed.launch, e.g. 0; use -1/cpu for single-process CPU training",
+    )
+    parser.add_argument(
+        "--finetune-override",
+        action="append",
+        default=[],
+        help="extra PaddleOCR -o override, repeatable",
+    )
+    parser.add_argument(
+        "--run-finetune",
+        action="store_true",
+        help="actually run PaddleOCR training after preparing labels",
+    )
+    parser.add_argument(
+        "--export-finetune-checkpoint",
+        type=Path,
+        help="checkpoint prefix/path to export after fine-tuning",
+    )
+    parser.add_argument(
+        "--export-finetune-dir",
+        type=Path,
+        help="inference model output dir for exported fine-tuned model",
+    )
+    parser.add_argument(
+        "--export-finetune-override",
+        action="append",
+        default=[],
+        help="extra PaddleOCR export -o override, repeatable",
+    )
+    parser.add_argument(
+        "--run-finetune-export",
+        action="store_true",
+        help="actually run PaddleOCR export_model.py after preparing labels",
+    )
+    parser.add_argument(
+        "--update-ocr-model-config",
+        action="store_true",
+        help="write the exported recognition model dir into configs/ocr_models.json",
+    )
     args = parser.parse_args()
+
+    if args.prepare_finetune_dataset or args.train_reviewed_dataset:
+        output_dir = args.prepare_finetune_dataset or reviewed_dataset_output_dir()
+        field_names = (
+            {item.strip() for item in args.finetune_fields.split(",") if item.strip()}
+            if args.finetune_fields
+            else None
+        )
+        try:
+            result = fine_tune_from_dataset(
+                RecyclingDataset(Path("data/recycling")),
+                output_dir,
+                pattern_name=args.finetune_pattern,
+                field_names=field_names,
+                validation_every=args.finetune_validation_every,
+                config_path=args.paddleocr_train_config,
+                run=args.run_finetune,
+                overrides=args.finetune_override,
+                source_dir=args.paddleocr_source_dir,
+                gpus=args.finetune_gpus,
+                export_checkpoint_path=args.export_finetune_checkpoint,
+                export_output_dir=args.export_finetune_dir,
+                export_overrides=args.export_finetune_override,
+                run_export=args.run_finetune_export,
+                update_model_config=args.update_ocr_model_config,
+            )
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"fine-tune setup error: {exc}")
+            print("Install or clone PaddleOCR source first, for example:")
+            print("git clone https://github.com/PaddlePaddle/PaddleOCR.git C:\\dev\\PaddleOCR")
+            print("Then rerun with --paddleocr-source-dir C:\\dev\\PaddleOCR")
+            return 2
+        print(f"output_dir={result.dataset.output_dir}")
+        print(f"train_label={result.dataset.train_label_path}")
+        print(f"val_label={result.dataset.val_label_path}")
+        print(f"summary={result.dataset.summary_path}")
+        print(f"train_count={result.dataset.train_count}")
+        print(f"val_count={result.dataset.val_count}")
+        print(f"skipped_count={result.dataset.skipped_count}")
+        if result.command:
+            print("command=" + " ".join(result.command))
+            print(f"ran={args.run_finetune}")
+            if result.returncode is not None:
+                print(f"returncode={result.returncode}")
+        if result.export_command:
+            print("export_command=" + " ".join(result.export_command))
+            print(f"export_ran={args.run_finetune_export}")
+            if result.export_returncode is not None:
+                print(f"export_returncode={result.export_returncode}")
+        if result.model_config_updated:
+            print(f"model_config_updated={result.model_config_path}")
+        return result.returncode or result.export_returncode or 0
 
     if args.cleanup_recycling_days is not None:
         result = RecyclingDataset(Path("data/recycling")).cleanup_old_entries(

@@ -254,6 +254,91 @@ push หากมีข้อมูลผู้ป่วย/ข้อมูล�
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
+## Fine-tune dataset export
+
+Recycling data is only a training candidate until it is exported and used by a training job.
+Runtime OCR can load a fine-tuned PaddleOCR recognition inference model from either:
+
+```powershell
+$env:RAPE_OCR_REC_MODEL_DIR = "models\paddleocr\rec\latest"
+```
+
+or `configs/ocr_models.json`:
+
+```json
+{
+  "text_recognition_model_dir": "models/paddleocr/rec/latest"
+}
+```
+
+Prepare the dataset before training:
+
+1. OCR new documents.
+2. Review and correct every important field in the GUI.
+3. Click `Save Review` so the reviewed result is written into `data/recycling`.
+4. Reprocess old reviewed entries after crop/anchor changes when needed:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --reprocess-recycling --reprocess-pattern rural_rape --confirm-reprocess
+```
+
+5. Export reviewed crops and labels without training first:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --prepare-finetune-dataset data\finetune\rural_rape --finetune-pattern rural_rape
+```
+
+6. Inspect `summary.json`, `train_label.txt`, `val_label.txt`, and sampled files in `crops/`.
+7. Train only after the labels look correct.
+
+Limit preparation to selected fields:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --prepare-finetune-dataset data\finetune\headers --finetune-pattern rural_rape --finetune-fields patient_name,hospital,collection_date,collection_time
+```
+
+Prepare all reviewed data using a timestamped folder under `data/finetune/`:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --train-reviewed-dataset
+```
+
+Install or clone PaddleOCR source before training. The pip package provides runtime OCR, but the training scripts live in the PaddleOCR source checkout:
+
+```powershell
+git clone https://github.com/PaddlePaddle/PaddleOCR.git C:\dev\PaddleOCR
+```
+
+Print a PaddleOCR training command with a config path:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --train-reviewed-dataset --paddleocr-source-dir C:\dev\PaddleOCR --paddleocr-train-config C:\dev\PaddleOCR\configs\rec\PP-OCRv5\PP-OCRv5_server_rec.yml
+```
+
+By default, `--finetune-gpus -1` means CPU mode, runs `tools\train.py` directly, and adds `Global.use_gpu=False`.
+For GPU training, pass a real GPU id:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --train-reviewed-dataset --paddleocr-source-dir C:\dev\PaddleOCR --paddleocr-train-config C:\dev\PaddleOCR\configs\rec\PP-OCRv5\PP-OCRv5_server_rec.yml --finetune-gpus 0
+```
+
+The generated command automatically points PaddleOCR at the freshly exported `train_label.txt` and `val_label.txt`.
+Relative training and export model paths are resolved from the `Rape_OCR` project folder before PaddleOCR is launched.
+
+Actually run the training command only when ready:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --train-reviewed-dataset --paddleocr-source-dir C:\dev\PaddleOCR --paddleocr-train-config C:\dev\PaddleOCR\configs\rec\PP-OCRv5\PP-OCRv5_server_rec.yml --finetune-override "Global.save_model_dir=models/paddleocr/rec/checkpoints" --run-finetune
+```
+
+Export a trained checkpoint to an inference model folder:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --train-reviewed-dataset --paddleocr-source-dir C:\dev\PaddleOCR --paddleocr-train-config C:\dev\PaddleOCR\configs\rec\PP-OCRv5\PP-OCRv5_server_rec.yml --export-finetune-checkpoint models\paddleocr\rec\checkpoints\best_accuracy --export-finetune-dir models\paddleocr\rec\latest --run-finetune-export --update-ocr-model-config
+```
+
+Restart the GUI after updating the model config so PaddleOCR reloads the exported model.
+
 ## GUI Stability Notes
 
 - OCR ใน GUI รันผ่าน background `QThread` worker เพื่อไม่ให้ Qt main thread ค้างระหว่าง PaddleOCR/OpenCV ทำงาน

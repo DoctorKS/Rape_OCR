@@ -3,6 +3,10 @@ import unittest
 from rape_ocr.ocr_service import (
     PlaceholderOcrEngine,
     _detect_pattern_from_text,
+    _deskew_image,
+    _extract_page_text_items,
+    _layout_prediction_for_field,
+    _load_ocr_model_options,
     _normalize_case_code,
     _normalize_hospital_name,
     _normalize_named_field_prediction,
@@ -18,6 +22,26 @@ class OcrEngineTest(unittest.TestCase):
         self.assertIsInstance(engine, PlaceholderOcrEngine)
         self.assertEqual(engine.name, "placeholder")
 
+    def test_load_ocr_model_options_prefers_env_rec_model_dir(self):
+        options = _load_ocr_model_options(
+            env={
+                "RAPE_OCR_REC_MODEL_DIR": "models/paddleocr/rec/latest",
+                "RAPE_OCR_DET_MODEL_DIR": "",
+                "RAPE_OCR_TEXTLINE_MODEL_DIR": "",
+            }
+        )
+
+        self.assertEqual(
+            options["text_recognition_model_dir"],
+            "models/paddleocr/rec/latest",
+        )
+
+    def test_create_ocr_engine_returns_engine_when_paddle_preferred(self):
+        engine = create_ocr_engine(prefer_paddle=True)
+
+        self.assertIsNotNone(engine)
+        self.assertTrue(hasattr(engine, "recognize"))
+
     def test_detect_pattern_from_ppk_text(self):
         self.assertEqual(
             _detect_pattern_from_text("โรงพยาบาลพระปกเกล้า"),
@@ -31,6 +55,10 @@ class OcrEngineTest(unittest.TestCase):
             _detect_pattern_from_text("โรงพยาบาลพรปกเกล้า"),
             "ppk_rape",
         )
+        self.assertEqual(
+            _detect_pattern_from_text("TW.พระปกกล้า"),
+            "ppk_rape",
+        )
 
     def test_detect_pattern_from_text_defaults_to_rural_without_ppk_header(self):
         self.assertEqual(
@@ -39,11 +67,62 @@ class OcrEngineTest(unittest.TestCase):
         )
 
     def test_normalize_result_choice(self):
-        self.assertEqual(_normalize_result_choice("Negative"), "negative")
-        self.assertEqual(_normalize_result_choice("neg."), "negative")
-        self.assertEqual(_normalize_result_choice("Present"), "positive")
-        self.assertEqual(_normalize_result_choice("positive"), "positive")
+        self.assertEqual(_normalize_result_choice("Negative"), "Absence")
+        self.assertEqual(_normalize_result_choice("neg."), "Absence")
+        self.assertEqual(_normalize_result_choice("Absent"), "Absence")
+        self.assertEqual(_normalize_result_choice("Present"), "Presence")
+        self.assertEqual(_normalize_result_choice("positive"), "Presence")
+        self.assertEqual(_normalize_result_choice("Presence"), "Presence")
         self.assertEqual(_normalize_result_choice("unclear"), "")
+
+    def test_extract_page_text_items_accepts_numpy_boxes(self):
+        try:
+            import numpy as np
+        except Exception as exc:
+            raise unittest.SkipTest("numpy is required for PaddleOCR layout parser test") from exc
+        result = {
+            "rec_texts": ["TW.พระปกกล้า"],
+            "rec_boxes": np.array([[10, 20, 30, 40]]),
+            "rec_scores": [0.9],
+        }
+
+        items = _extract_page_text_items(result, width=100, height=100)
+
+        self.assertEqual(items[0][0], "TW.พระปกกล้า")
+        self.assertEqual(items[0][1], (0.1, 0.2, 0.3, 0.4))
+
+    def test_deskew_preserves_image_shape(self):
+        try:
+            import cv2
+            import numpy as np
+        except Exception as exc:
+            raise unittest.SkipTest("opencv and numpy are required for deskew test") from exc
+        image = np.full((120, 240, 3), 255, dtype=np.uint8)
+        cv2.line(image, (20, 60), (220, 70), (0, 0, 0), 2)
+
+        corrected = _deskew_image(image, max_degrees=8.0)
+
+        self.assertEqual(corrected.shape, image.shape)
+
+    def test_rural_header_layout_prediction_reads_grouped_fields(self):
+        items = [
+            ("Name:", (0.01, 0.17, 0.09, 0.20), 0.99),
+            ("sample patient", (0.12, 0.18, 0.35, 0.21), 0.8),
+            ("Age: 19", (0.60, 0.18, 0.69, 0.20), 0.92),
+            ("yrs HN: 6303163", (0.71, 0.18, 0.91, 0.20), 0.76),
+            ("Hospital:", (0.01, 0.20, 0.11, 0.23), 0.96),
+            ("sample hospital", (0.12, 0.20, 0.24, 0.23), 0.7),
+            ("Date of specimen collectionDate:1.69", (0.02, 0.23, 0.50, 0.26), 0.94),
+            ("Time: 14.00", (0.70, 0.23, 0.88, 0.26), 0.87),
+        ]
+
+        self.assertEqual(_layout_prediction_for_field("rural_rape", "age", items)[0], "19")
+        self.assertEqual(_layout_prediction_for_field("rural_rape", "hn", items)[0], "6303163")
+        self.assertEqual(_layout_prediction_for_field("rural_rape", "collection_time", items)[0], "14.00")
+        self.assertEqual(
+            _layout_prediction_for_field("rural_rape", "patient_name", items)[0],
+            "sample patient",
+        )
 
     def test_normalize_case_code(self):
         self.assertEqual(_normalize_case_code("S042/69"), "5042/69")
@@ -100,11 +179,11 @@ class OcrEngineTest(unittest.TestCase):
     def test_normalize_named_ppk_fields(self):
         self.assertEqual(
             _normalize_named_field_prediction("ppk_rape", "vulvar_result", "result_choice", "POSITIVE", "POSITIVE"),
-            "positive",
+            "Presence",
         )
         self.assertEqual(
             _normalize_named_field_prediction("ppk_rape", "vaginal_result", "result_choice", "Negative", "Negative"),
-            "negative",
+            "Absence",
         )
         self.assertEqual(
             _normalize_named_field_prediction("ppk_rape", "handwritten_date", "table_date", "4.06", "4.06"),

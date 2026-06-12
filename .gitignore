@@ -10,6 +10,15 @@ dist/
 *.egg-info/
 
 # Local runtime data contains sensitive images, reviewed labels, and exports.
-data/
+data/*
+!data/finetune/
+data/finetune/*
+!data/finetune/.gitkeep
 output/
 docs/example/
+
+# Keep model folder structure, not trained model/checkpoint files.
+models/paddleocr/rec/*
+!models/paddleocr/rec/.gitkeep
+models/paddleocr/det/*
+!models/paddleocr/det/.gitkeep

@@ -1,0 +1,5 @@
+{
+  "text_recognition_model_dir": "models\\paddleocr\\rec\\latest",
+  "text_detection_model_dir": "",
+  "textline_orientation_model_dir": ""
+}

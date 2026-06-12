@@ -86,21 +86,21 @@
     {
       "name": "vulvar_result",
       "label": "Vulvar result",
-      "bbox": [0.39, 0.28, 0.62, 0.39],
+      "bbox": [0.65, 0.26, 0.82, 0.37],
       "kind": "result_choice",
       "docx_tag": "vulvar_result"
     },
     {
       "name": "vaginal_result",
       "label": "Vaginal result",
-      "bbox": [0.41, 0.35, 0.62, 0.46],
+      "bbox": [0.65, 0.31, 0.82, 0.42],
       "kind": "result_choice",
       "docx_tag": "vaginal_result"
     },
     {
       "name": "endocervical_result",
       "label": "Endocervical result",
-      "bbox": [0.42, 0.41, 0.63, 0.53],
+      "bbox": [0.65, 0.36, 0.82, 0.47],
       "kind": "result_choice",
       "docx_tag": "endocervical_result"
     },

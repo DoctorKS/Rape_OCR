@@ -1,0 +1,174 @@
+Rape OCR Bug Log
+================
+
+2026-06-13
+
+1. Pattern detection used filename fallback too aggressively
+   Symptom:
+   - Unknown image filenames such as i*.jpg were detected as ppk_rape by default.
+   Cause:
+   - OcrService.detect_pattern() had hard-coded sample-name checks and returned ppk_rape for unknown names.
+   Fix:
+   - Added OCR-based pattern detection from the upper form area.
+   - If PPK hospital header/upper-form text is not found, detection falls back to rural_rape.
+
+2. Pattern detection crop was too shallow for i3.jpg
+   Symptom:
+   - i3.jpg was detected as rural_rape even though "รพ.พระปกเกล้า" appeared near the upper-left Hospital row.
+   Cause:
+   - Detection OCR only scanned the top 20% of the image, which could miss the Hospital row.
+   Fix:
+   - Added PATTERN_HEADER_RATIO = 0.35 and scan the upper 35% of the image for pattern detection.
+
+3. PPK hospital OCR variations were not accepted
+   Symptom:
+   - PPK documents could be detected as rural_rape when PaddleOCR read the hospital as variants such as "โรงพยาบาลพรปกเกล้า" or "TW.พระปกกล้า".
+   Cause:
+   - Pattern detection only matched exact/near-exact PPK hospital text.
+   Fix:
+   - Added PPK header tokens for "รพ.พระปกเกล้า", "รพพระปกเกล้า", "โรงพยาบาลพรปกเกล้า", "รพ.พรปกเกล้า", "รพพรปกเกล้า", "พระปกกล้า", and "TW.พระปกกล้า" variants.
+
+4. PaddleOCR layout parser failed on numpy array boxes
+   Symptom:
+   - recognize_layout() could fail with "The truth value of an array with more than one element is ambiguous".
+   Cause:
+   - _extract_page_text_items() used Python truthiness with PaddleOCR numpy arrays when selecting rec_boxes/dt_polys/boxes.
+   Fix:
+   - Added _first_present() to select dict values without array truthiness.
+   - Converted numpy arrays to lists before parsing bounding boxes.
+
+5. OCR engine factory regression returned None
+   Symptom:
+   - create_ocr_engine(prefer_paddle=True) could return None after a previous patch.
+   Cause:
+   - _first_present() was inserted in the wrong place and interrupted create_ocr_engine().
+   Fix:
+   - Restored create_ocr_engine() so it returns PaddleOcrEngine or PlaceholderOcrEngine.
+   - Added regression test that the factory returns an engine object.
+
+6. rural_rape hospital incorrectly defaulted to a fixed hospital
+   Symptom:
+   - rural_rape.hospital could show "โรงพยาบาลนายายอาม" even when the document had different hospital text.
+   Cause:
+   - rural_rape.json had default_value for hospital, causing fallback instead of pure OCR text recognition.
+   Fix:
+   - Removed rural_rape.hospital default_value.
+   - rural_rape.hospital now uses OCR text recognition with hospital_name normalization only.
+
+7. rural_rape hospital was briefly changed to PPK constant
+   Symptom:
+   - rural_rape.hospital could become "โรงพยาบาลพระปกเกล้า" incorrectly.
+   Cause:
+   - Earlier config change made rural hospital behave like ppk_rape.hospital.
+   Fix:
+   - Reverted rural hospital to OCR field behavior.
+   - Added rules so rural_rape should not accept PPK hospital text as a rural hospital value.
+
+8. collection_date condition changed
+   Symptom:
+   - collection_date was normalized into slash-year format such as "18/69".
+   Cause:
+   - Old rule used _normalize_slash_year().
+   Fix:
+   - Replaced with text-date recognition: number + letters + number only, e.g. "18 พฤษภาคม 2569".
+   - Slash dates such as "18/05/2569" no longer pass OCR field condition.
+
+9. handwritten_number condition changed
+   Symptom:
+   - handwritten_number was normalized to "S042" and dropped the year suffix.
+   Cause:
+   - Old _normalize_s_number() only required S + three digits.
+   Fix:
+   - handwritten_number now requires S + three digits + "/" + two digits, e.g. "S042/69".
+
+10. Local training/recycling data exists but is not in git
+    Symptom:
+    - There is usable reviewed recycling data locally, but it is not in GitHub.
+    Cause:
+    - data/, output/, and docs/example/ are ignored as sensitive runtime data.
+    Finding:
+    - data/recycling contains 12 metadata entries: 9 ppk_rape and 3 rural_rape.
+    - Reviewed entries exist locally, but they are intentionally not tracked in git.
+
+11. PPK result crop included AP and sperm columns
+    Symptom:
+    - vulvar_result, vaginal_result, and endocervical_result could OCR the AP result instead of the sperm result.
+    Cause:
+    - ppk_rape result field bboxes covered the wider handwritten result area, including the first AP column.
+    Fix:
+    - Moved ppk_rape result bboxes to the second sperm column only.
+    - Changed result_choice normalized values to "Presence" and "Absence".
+    - Migrated local data/recycling metadata and data/app.db result labels from positive/negative to Presence/Absence.
+
+2026-06-13 - [partial] rural_rape i8 header OCR misses upper fields
+- Symptom:
+  - i8.jpg detected as rural_rape but patient_name, age, hn, hospital, collection_date, and collection_time were blank or garbage even though the screen showed many reviewed dataset entries.
+- Cause:
+  - The reviewed recycling data was not being used as a fine-tuned OCR model.
+  - The six upper rural_rape fields used fixed relative bboxes, which are fragile for photographed, skewed, shadowed pages like i8.jpg.
+- Fix/next:
+  - Added anchor/layout crop fallback for the six upper rural_rape fields.
+  - Added conservative page deskew before OCR crop extraction.
+  - Added fine-tune dataset export functions so reviewed recycling entries can become PaddleOCR recognition training labels.
+  - i8.jpg now improves for numeric/layout fields such as age, hn, and collection_time, but patient_name/hospital still need real fine-tuning or more reviewed labels because PaddleOCR returns mojibake-like text.
+- Verification:
+  - Added tests for rural top-field anchors, anchor selection near fallback bbox, deskew shape preservation, and fine-tune dataset export.
+
+2026-06-13 - [fixed] fine-tune command fails when PaddleOCR source is missing
+- Symptom:
+  - Running `--train-reviewed-dataset --paddleocr-source-dir C:\dev\PaddleOCR` raised a Python traceback when `C:\dev\PaddleOCR` did not exist.
+- Cause:
+  - The README used `C:\dev\PaddleOCR` as an example source checkout path, but the CLI did not explain that PaddleOCR source must be cloned separately because the pip package does not include `tools/train.py`.
+- Fix/next:
+  - Added a friendly CLI setup error with the clone command and retry hint.
+  - Added README instructions to clone PaddleOCR source before training.
+- Verification:
+  - Added a regression test for missing PaddleOCR source dir.
+
+2026-06-13 - [fixed] fine-tune CPU launch fails before checkpoint creation
+- Symptom:
+  - Running fine-tune with the default `--finetune-gpus -1` printed `returncode=1` and created no files under `models/paddleocr/rec/checkpoints`.
+  - Paddle failed inside `paddle.distributed.launch` with `ValueError: substring not found`.
+- Cause:
+  - `-1` was passed to Paddle distributed launcher as a GPU device label. The launcher expects real device labels such as `0`, so CPU training should not use the distributed launcher.
+  - The generated train command also did not explicitly override PaddleOCR's train/eval label file paths, so a successful run could still miss the freshly exported reviewed dataset.
+- Fix:
+  - CPU mode (`-1`, `cpu`, empty, or `none`) now runs `tools/train.py` directly.
+  - GPU mode such as `--finetune-gpus 0` still uses `paddle.distributed.launch`.
+  - Fine-tune commands now automatically add `Train.dataset.*` and `Eval.dataset.*` overrides for the generated `train_label.txt` and `val_label.txt`.
+- Verification:
+  - Added regression tests for CPU command generation, GPU launcher generation, absolute crop labels, and train command dataset overrides.
+
+2026-06-13 - [fixed] PaddleOCR training dependency missing skimage
+- Symptom:
+  - Fine-tune command reached `C:\dev\PaddleOCR\tools\train.py` but failed before training with `ModuleNotFoundError: No module named 'skimage'`.
+  - No checkpoint was created because PaddleOCR stopped while importing `ppocr.data`.
+- Cause:
+  - Runtime OCR dependencies were installed, but the PaddleOCR source training requirements had not been installed into `.venv`.
+- Fix:
+  - Installed PaddleOCR training requirements from `C:\dev\PaddleOCR\requirements.txt` into the project venv.
+- Verification:
+  - Verified `import skimage` and `import ppocr.data` succeed with `C:\dev\PaddleOCR` on `sys.path`.
+  - Re-ran `tests.test_training`; 9 tests passed.
+
+2026-06-13 - [fixed] CPU fine-tune still used GPU config
+- Symptom:
+  - Fine-tune command ran `tools/train.py` directly in CPU mode but failed in PaddleOCR `program.preprocess()` with `AttributeError: 'ParallelEnv' object has no attribute '_device_id'`.
+- Cause:
+  - The selected PaddleOCR config `PP-OCRv5_server_rec.yml` has `Global.use_gpu: true`, so direct CPU training still entered GPU/ParallelEnv setup.
+- Fix:
+  - CPU fine-tune command generation now adds `Global.use_gpu=False` automatically.
+  - GPU fine-tune mode keeps the original config behavior and uses the distributed launcher.
+- Verification:
+  - Added regression tests that CPU commands include `Global.use_gpu=False`, GPU commands do not, and explicit user overrides are not duplicated.
+
+2026-06-13 - [fixed] relative fine-tune export paths wrote under PaddleOCR source
+- Symptom:
+  - Export completed with `export_returncode=0`, but `dir models\paddleocr\rec\latest` under `C:\dev\Rape_OCR` failed because the inference files were written to `C:\dev\PaddleOCR\models\paddleocr\rec\latest`.
+- Cause:
+  - PaddleOCR training/export subprocesses run with `cwd` set to the PaddleOCR source checkout, so relative `Global.save_model_dir` and `Global.save_inference_dir` paths were interpreted relative to `C:\dev\PaddleOCR`.
+- Fix:
+  - Relative training save paths and export paths are now resolved to absolute paths from the `Rape_OCR` project folder before launching PaddleOCR.
+  - `configs/ocr_models.json` keeps a portable project-relative recognition model path.
+- Verification:
+  - Added regression tests that relative train/export model paths resolve under the project folder.

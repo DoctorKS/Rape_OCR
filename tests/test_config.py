@@ -3,9 +3,6 @@ import unittest
 from rape_ocr.config import load_patterns
 
 
-RURAL_HOSPITAL = "\u0e42\u0e23\u0e07\u0e1e\u0e22\u0e32\u0e1a\u0e32\u0e25\u0e19\u0e32\u0e22\u0e32\u0e22\u0e2d\u0e32\u0e21"
-
-
 class ConfigTest(unittest.TestCase):
     def test_load_patterns_contains_expected_patterns(self):
         patterns = load_patterns()
@@ -32,10 +29,17 @@ class ConfigTest(unittest.TestCase):
             ],
         )
 
-    def test_rural_hospital_is_ocr_field_with_rural_default(self):
+    def test_rural_hospital_is_ocr_field_without_default(self):
         patterns = load_patterns()
         hospital = next(field for field in patterns["rural_rape"].fields if field.name == "hospital")
 
         self.assertEqual(hospital.kind, "hospital_name")
         self.assertEqual(hospital.preprocess, "handwriting")
-        self.assertEqual(hospital.default_value, RURAL_HOSPITAL)
+        self.assertIsNone(hospital.default_value)
+
+    def test_rural_top_fields_use_anchor_fallbacks(self):
+        patterns = load_patterns()
+        fields = {field.name: field for field in patterns["rural_rape"].fields}
+
+        for name in ("patient_name", "age", "hn", "hospital", "collection_date", "collection_time"):
+            self.assertIsNotNone(fields[name].anchor, name)

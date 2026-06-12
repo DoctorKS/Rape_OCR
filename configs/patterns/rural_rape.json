@@ -8,20 +8,53 @@
       "label": "Name",
       "bbox": [0.18, 0.15, 0.62, 0.20],
       "docx_tag": "patient_name",
-      "required": true
+      "required": true,
+      "preprocess": "handwriting",
+      "anchor": {
+        "texts": ["Name"],
+        "side": "right",
+        "width": 0.42,
+        "height": 0.04,
+        "offset_x": 0.005,
+        "offset_y": -0.004,
+        "pad_x": 0.01,
+        "pad_y": 0.008
+      }
     },
     {
       "name": "age",
       "label": "Age",
       "bbox": [0.68, 0.15, 0.77, 0.20],
-      "docx_tag": "age"
+      "docx_tag": "age",
+      "preprocess": "handwriting",
+      "anchor": {
+        "texts": ["Age"],
+        "side": "right",
+        "width": 0.08,
+        "height": 0.04,
+        "offset_x": 0.005,
+        "offset_y": -0.004,
+        "pad_x": 0.01,
+        "pad_y": 0.008
+      }
     },
     {
       "name": "hn",
       "label": "HN",
       "bbox": [0.83, 0.15, 0.97, 0.20],
       "docx_tag": "hn",
-      "required": true
+      "required": true,
+      "preprocess": "handwriting",
+      "anchor": {
+        "texts": ["HN", "H.N.", "H N"],
+        "side": "right",
+        "width": 0.14,
+        "height": 0.04,
+        "offset_x": 0.005,
+        "offset_y": -0.004,
+        "pad_x": 0.01,
+        "pad_y": 0.008
+      }
     },
     {
       "name": "hospital",
@@ -29,21 +62,51 @@
       "bbox": [0.18, 0.195, 0.50, 0.225],
       "kind": "hospital_name",
       "docx_tag": "hospital",
-      "default_value": "โรงพยาบาลนายายอาม",
-      "preprocess": "handwriting"
+      "preprocess": "handwriting",
+      "anchor": {
+        "texts": ["Hospital"],
+        "side": "right",
+        "width": 0.33,
+        "height": 0.04,
+        "offset_x": 0.005,
+        "offset_y": -0.004,
+        "pad_x": 0.01,
+        "pad_y": 0.008
+      }
     },
     {
       "name": "collection_date",
       "label": "Date of specimen collection",
       "bbox": [0.45, 0.22, 0.68, 0.27],
-      "docx_tag": "collection_date"
+      "docx_tag": "collection_date",
+      "preprocess": "handwriting",
+      "anchor": {
+        "texts": ["Date"],
+        "side": "right",
+        "width": 0.26,
+        "height": 0.04,
+        "offset_x": 0.005,
+        "offset_y": -0.004,
+        "pad_x": 0.01,
+        "pad_y": 0.008
+      }
     },
     {
       "name": "collection_time",
       "label": "Time",
       "bbox": [0.80, 0.22, 0.97, 0.27],
       "docx_tag": "collection_time",
-      "preprocess": "handwriting"
+      "preprocess": "handwriting",
+      "anchor": {
+        "texts": ["Time"],
+        "side": "right",
+        "width": 0.18,
+        "height": 0.04,
+        "offset_x": 0.005,
+        "offset_y": -0.004,
+        "pad_x": 0.01,
+        "pad_y": 0.008
+      }
     },
     {
       "name": "vaginal_penetration",

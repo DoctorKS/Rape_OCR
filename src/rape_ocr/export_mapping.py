@@ -36,8 +36,8 @@ RESULT_CHOICE_FIELDS = {
 }
 
 DOCX_RESULT_VALUES = {
-    "negative": "Absence of spermatozoa",
-    "positive": "Presence of spermatozoa",
+    "absence": "Absence of spermatozoa",
+    "presence": "Presence of spermatozoa",
 }
 
 PROTOTYPE_DATE_FIELD_ORDER = (
@@ -112,10 +112,10 @@ def normalize_export_value(field_name: str, value: str) -> str:
     if field_name not in RESULT_CHOICE_FIELDS:
         return text
     compact = text.lower().replace(" ", "").replace(".", "")
-    if compact in {"negative", "neg", "nega", "negati", "absent", "abs", "-"}:
-        return DOCX_RESULT_VALUES["negative"]
-    if compact in {"positive", "pos", "present", "pres", "+"}:
-        return DOCX_RESULT_VALUES["positive"]
+    if compact in {"absence", "negative", "neg", "nega", "negati", "absent", "abs", "-"}:
+        return DOCX_RESULT_VALUES["absence"]
+    if compact in {"presence", "positive", "pos", "present", "pres", "+"}:
+        return DOCX_RESULT_VALUES["presence"]
     return ""
 
 
