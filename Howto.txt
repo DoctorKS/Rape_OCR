@@ -296,6 +296,26 @@ cd C:\dev\Rape_OCR
 .\.venv\Scripts\python.exe -m rape_ocr.main --reprocess-recycling --reprocess-pattern ppk_rape --confirm-reprocess
 ```
 
+วิธีใช้จาก GUI:
+
+1. เปิด GUI:
+
+```powershell
+cd C:\dev\Rape_OCR
+.\.venv\Scripts\python.exe -m rape_ocr.main --gui
+```
+
+2. กดปุ่ม `Reprocess Dataset`
+3. เลือก pattern เช่น `ppk_rape`, `rural_rape`, หรือ `all`
+4. ระบบจะรัน dry-run ก่อน
+5. ถ้ารายการพร้อม reprocess ระบบจะถามว่าจะเขียน entry ใหม่จริงหรือไม่
+6. กด `Yes` เพื่อสร้าง recycling entry ใหม่ หรือ `No` เพื่อจบแค่ dry-run
+
+หมายเหตุ:
+
+- ใน GUI reprocess จะใช้ OCR engine ตัวเดียวกับ GUI
+- ถ้า OCR engine เป็น PaddleOCR รอบ write อาจใช้เวลานาน แต่รันบน background thread เพื่อไม่ให้หน้าต่างค้าง
+
 ถ้าต้องการ reprocess แค่ entry เดียว:
 
 ```powershell

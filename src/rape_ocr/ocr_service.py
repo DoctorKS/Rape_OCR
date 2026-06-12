@@ -290,7 +290,29 @@ class OcrService:
             return "rural_rape"
         if "29351956" in name or "29351957" in name:
             return "ppk_rape"
-        return "ppk_rape"
+        detected = self._detect_pattern_from_image(image_path)
+        if detected is not None:
+            return detected
+        return "rural_rape"
+
+    def _detect_pattern_from_image(self, image_path: Path) -> str | None:
+        cv2 = _load_cv2()
+        image = cv2.imread(str(image_path)) if cv2 is not None else None
+        if image is None:
+            return None
+        height, _width = image.shape[:2]
+        header = image[: max(1, round(height * 0.20)), :]
+        try:
+            page_items = self.engine.recognize_layout(header)
+        except Exception:
+            page_items = []
+        text = " ".join(item[0] for item in page_items)
+        if not text:
+            try:
+                text, _confidence = self.engine.recognize(header)
+            except Exception:
+                text = ""
+        return _detect_pattern_from_text(text)
 
     def process(
         self,
@@ -498,6 +520,13 @@ def _normalize_named_field_prediction(
     if field_name in {"vulvar_result", "vaginal_result", "endocervical_result"}:
         return _normalize_result_choice(source)
     return prediction
+
+
+def _detect_pattern_from_text(text: str) -> str | None:
+    normalized = _normalize_anchor_text(text)
+    if _normalize_anchor_text("โรงพยาบาลพระปกเกล้า") in normalized:
+        return "ppk_rape"
+    return "rural_rape"
 
 
 def _translate_thai_digits(text: str) -> str:

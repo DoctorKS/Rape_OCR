@@ -2,6 +2,7 @@ import unittest
 
 from rape_ocr.ocr_service import (
     PlaceholderOcrEngine,
+    _detect_pattern_from_text,
     _normalize_case_code,
     _normalize_hospital_name,
     _normalize_named_field_prediction,
@@ -16,6 +17,18 @@ class OcrEngineTest(unittest.TestCase):
 
         self.assertIsInstance(engine, PlaceholderOcrEngine)
         self.assertEqual(engine.name, "placeholder")
+
+    def test_detect_pattern_from_ppk_text(self):
+        self.assertEqual(
+            _detect_pattern_from_text("โรงพยาบาลพระปกเกล้า"),
+            "ppk_rape",
+        )
+
+    def test_detect_pattern_from_text_defaults_to_rural_without_ppk_header(self):
+        self.assertEqual(
+            _detect_pattern_from_text("ใบแสดงรายการชันสูตรและบริการทางนิติเวช Order NO."),
+            "rural_rape",
+        )
 
     def test_normalize_result_choice(self):
         self.assertEqual(_normalize_result_choice("Negative"), "negative")
