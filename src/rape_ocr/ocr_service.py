@@ -524,7 +524,15 @@ def _normalize_named_field_prediction(
 
 def _detect_pattern_from_text(text: str) -> str | None:
     normalized = _normalize_anchor_text(text)
-    if _normalize_anchor_text("โรงพยาบาลพระปกเกล้า") in normalized:
+    ppk_header_tokens = (
+        "โรงพยาบาลพระปกเกล้า",
+        "รพ.พระปกเกล้า",
+        "รพพระปกเกล้า",
+        "โรงพยาบาลพรปกเกล้า",
+        "รพ.พรปกเกล้า",
+        "รพพรปกเกล้า",
+    )
+    if any(_normalize_anchor_text(token) in normalized for token in ppk_header_tokens):
         return "ppk_rape"
     return "rural_rape"
 
@@ -564,8 +572,9 @@ def _normalize_s_number(text: str) -> str:
     normalized = _translate_thai_digits(text).upper().replace(" ", "")
     normalized = normalized.replace("O", "0").replace("Q", "0")
     normalized = normalized.replace("I", "1").replace("L", "1")
-    match = re.search(r"S(\d{3})(?!\d)", normalized)
-    return f"S{match.group(1)}" if match else ""
+    normalized = normalized.replace("\\", "/").replace("|", "/")
+    match = re.search(r"S(\d{3})/(\d{2})(?!\d)", normalized)
+    return f"S{match.group(1)}/{match.group(2)}" if match else ""
 
 
 def _normalize_case_code(text: str, default_year: str | None = None) -> str:

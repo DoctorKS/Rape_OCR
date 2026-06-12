@@ -23,6 +23,14 @@ class OcrEngineTest(unittest.TestCase):
             _detect_pattern_from_text("โรงพยาบาลพระปกเกล้า"),
             "ppk_rape",
         )
+        self.assertEqual(
+            _detect_pattern_from_text("รพ.พระปกเกล้า"),
+            "ppk_rape",
+        )
+        self.assertEqual(
+            _detect_pattern_from_text("โรงพยาบาลพรปกเกล้า"),
+            "ppk_rape",
+        )
 
     def test_detect_pattern_from_text_defaults_to_rural_without_ppk_header(self):
         self.assertEqual(
@@ -104,5 +112,9 @@ class OcrEngineTest(unittest.TestCase):
         )
         self.assertEqual(
             _normalize_named_field_prediction("ppk_rape", "handwritten_number", "case_code", "5042/69", "S042/69"),
-            "S042",
+            "S042/69",
+        )
+        self.assertEqual(
+            _normalize_named_field_prediction("ppk_rape", "handwritten_number", "case_code", "5042", "S042"),
+            "",
         )
