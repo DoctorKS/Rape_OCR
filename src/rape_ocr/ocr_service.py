@@ -355,6 +355,14 @@ class OcrService:
                 ocr_image = self._prepare_ocr_crop(crop, config.preprocess or config.kind)
                 raw_prediction, confidence = self.engine.recognize(ocr_image if ocr_image is not None else image)
                 prediction = _normalize_field_prediction(config.kind, raw_prediction)
+                prediction = _normalize_named_field_prediction(
+                    pattern.name,
+                    config.name,
+                    config.kind,
+                    prediction,
+                    raw_prediction,
+                    config.default_value,
+                )
                 if config.default_value and (not prediction.strip() or confidence < 0.6):
                     prediction = config.default_value
             fields.append(
@@ -463,6 +471,80 @@ def _normalize_field_prediction(kind: str, raw_prediction: str) -> str:
     return raw_prediction
 
 
+def _normalize_named_field_prediction(
+    pattern_name: str,
+    field_name: str,
+    kind: str,
+    prediction: str,
+    raw_prediction: str,
+    default_value: str | None = None,
+) -> str:
+    source = prediction or raw_prediction
+    if field_name == "patient_name":
+        return _thai_text_only(source)
+    if field_name in {"age", "hn"}:
+        return _digits_only(source)
+    if field_name == "hospital":
+        value = _thai_text_only(prediction)
+        if pattern_name == "rural_rape" and value == _ppk_hospital_name():
+            return default_value or ""
+        return value
+    if field_name == "collection_date":
+        return _normalize_slash_year(source)
+    if field_name in {"collection_time", "handwritten_date"}:
+        return _normalize_dot_number(source)
+    if field_name == "handwritten_number":
+        return _normalize_s_number(raw_prediction)
+    if field_name in {"vulvar_result", "vaginal_result", "endocervical_result"}:
+        return _normalize_result_choice(source)
+    return prediction
+
+
+def _translate_thai_digits(text: str) -> str:
+    return text.translate(str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789"))
+
+
+def _digits_only(text: str) -> str:
+    return "".join(re.findall(r"\d", _translate_thai_digits(text)))
+
+
+def _thai_text_only(text: str) -> str:
+    return " ".join(re.findall(r"[\u0e00-\u0e7f]+", text.strip()))
+
+
+def _normalize_slash_year(text: str) -> str:
+    normalized = _translate_thai_digits(text)
+    year_match = re.search(r"25(\d{2})", normalized)
+    if year_match:
+        before_year = normalized[: year_match.start()]
+        day_matches = re.findall(r"\d+", before_year)
+        if day_matches:
+            return f"{day_matches[0]}/{year_match.group(1)}"
+    slash_match = re.search(r"(\d+)\s*/\s*(?:\d+\s*/\s*)?(\d{2})(?!\d)", normalized)
+    if slash_match:
+        return f"{slash_match.group(1)}/{slash_match.group(2)}"
+    return ""
+
+
+def _normalize_dot_number(text: str) -> str:
+    normalized = _translate_thai_digits(text)
+    dot_match = re.search(r"(\d+)\s*[.]\s*(\d+)", normalized)
+    if dot_match:
+        return f"{dot_match.group(1)}.{dot_match.group(2)}"
+    separator_match = re.search(r"(\d{1,2})\D+(\d{2})(?!\d)", normalized)
+    if separator_match:
+        return f"{separator_match.group(1)}.{separator_match.group(2)}"
+    return ""
+
+
+def _normalize_s_number(text: str) -> str:
+    normalized = _translate_thai_digits(text).upper().replace(" ", "")
+    normalized = normalized.replace("O", "0").replace("Q", "0")
+    normalized = normalized.replace("I", "1").replace("L", "1")
+    match = re.search(r"S(\d{3})(?!\d)", normalized)
+    return f"S{match.group(1)}" if match else ""
+
+
 def _normalize_case_code(text: str, default_year: str | None = None) -> str:
     raw = text.strip().upper()
     raw = raw.replace(" ", "")
@@ -509,6 +591,10 @@ def _normalize_hospital_name(text: str) -> str:
     if compact.startswith("โรงพยาบาล"):
         return compact
     return text.strip()
+
+
+def _ppk_hospital_name() -> str:
+    return "โรงพยาบาลพระปกเกล้า"
 
 
 def _infer_buddhist_year_suffix(fields: list[FieldResult]) -> str | None:

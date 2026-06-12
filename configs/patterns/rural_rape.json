@@ -29,7 +29,7 @@
       "bbox": [0.18, 0.195, 0.50, 0.225],
       "kind": "hospital_name",
       "docx_tag": "hospital",
-      "default_value": "โรงพยาบาลพระปกเกล้า",
+      "default_value": "โรงพยาบาลนายายอาม",
       "preprocess": "handwriting"
     },
     {

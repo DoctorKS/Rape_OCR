@@ -3,7 +3,7 @@ import unittest
 from rape_ocr.config import load_patterns
 
 
-PPK_HOSPITAL = "\u0e42\u0e23\u0e07\u0e1e\u0e22\u0e32\u0e1a\u0e32\u0e25\u0e1e\u0e23\u0e30\u0e1b\u0e01\u0e40\u0e01\u0e25\u0e49\u0e32"
+RURAL_HOSPITAL = "\u0e42\u0e23\u0e07\u0e1e\u0e22\u0e32\u0e1a\u0e32\u0e25\u0e19\u0e32\u0e22\u0e32\u0e22\u0e2d\u0e32\u0e21"
 
 
 class ConfigTest(unittest.TestCase):
@@ -32,10 +32,10 @@ class ConfigTest(unittest.TestCase):
             ],
         )
 
-    def test_rural_hospital_is_ocr_field_with_ppk_default(self):
+    def test_rural_hospital_is_ocr_field_with_rural_default(self):
         patterns = load_patterns()
         hospital = next(field for field in patterns["rural_rape"].fields if field.name == "hospital")
 
         self.assertEqual(hospital.kind, "hospital_name")
         self.assertEqual(hospital.preprocess, "handwriting")
-        self.assertEqual(hospital.default_value, PPK_HOSPITAL)
+        self.assertEqual(hospital.default_value, RURAL_HOSPITAL)
