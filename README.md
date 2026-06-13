@@ -194,6 +194,23 @@ log เต็มให้เพิ่ม `--verbose-ocr`:
 .\.venv\Scripts\python.exe -m rape_ocr.main --sample docs\example\S__29351955_0.jpg --verbose-ocr
 ```
 
+ใช้ Typhoon OCR ผ่าน Ollama สำหรับลายมือไทยหรือ crop ที่ PaddleOCR อ่านยาก:
+
+```powershell
+ollama pull scb10x/typhoon-ocr1.5-3b
+$env:RAPE_OCR_ENGINE = "typhoon_ollama"
+.\.venv\Scripts\python.exe -m rape_ocr.main --gui
+```
+
+ตั้งชื่อ model หรือ endpoint เองได้:
+
+```powershell
+$env:RAPE_OCR_TYPHOON_MODEL = "scb10x/typhoon-ocr1.5-3b"
+$env:RAPE_OCR_OLLAMA_URL = "http://localhost:11434/api/generate"
+```
+
+Typhoon OCR เป็น optional engine ผ่าน local Ollama เท่านั้น ถ้าไม่ได้ตั้ง `RAPE_OCR_ENGINE=typhoon_ollama` ระบบยังใช้ PaddleOCR ตามเดิม
+
 ถ้าต้องการทดสอบ pipeline โดยไม่โหลด PaddleOCR ให้ใช้ placeholder mode:
 
 ```powershell
@@ -376,3 +393,4 @@ Restart the GUI after updating the model config so PaddleOCR reloads the exporte
 - ต้องแยก raw OCR prediction ออกจาก human-approved label
 - ก่อนเปลี่ยน model ที่ใช้งานจริง ต้องเทียบ model ใหม่กับ model เดิมบน golden
   document set เดียวกัน
+

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import contextlib
 import io
+import base64
 import json
 import os
 import re
 import sys
 from pathlib import Path
 from typing import Any
+from urllib import request
 
 from .domain import AnchorConfig, BBox, FieldResult, OcrJob, PatternConfig
 
@@ -43,6 +45,52 @@ class PlaceholderOcrEngine(OcrEngine):
 
     def recognize(self, image) -> tuple[str, float]:
         return "", 0.0
+
+
+class TyphoonOllamaOcrEngine(OcrEngine):
+    name = "typhoon_ollama"
+
+    def __init__(
+        self,
+        model: str | None = None,
+        endpoint: str | None = None,
+        prompt: str | None = None,
+        timeout_seconds: float = 120.0,
+        urlopen=request.urlopen,
+    ) -> None:
+        self.model = model or os.environ.get("RAPE_OCR_TYPHOON_MODEL", "scb10x/typhoon-ocr1.5-3b")
+        self.endpoint = endpoint or os.environ.get("RAPE_OCR_OLLAMA_URL", "http://localhost:11434/api/generate")
+        self.prompt = prompt or os.environ.get(
+            "RAPE_OCR_TYPHOON_PROMPT",
+            "อ่านข้อความทั้งหมดในภาพนี้ให้ตรงกับต้นฉบับ ตอบเฉพาะข้อความที่อ่านได้ ไม่ต้องอธิบาย",
+        )
+        self.timeout_seconds = timeout_seconds
+        self._urlopen = urlopen
+
+    def recognize(self, image) -> tuple[str, float]:
+        encoded = _encode_image_png_base64(image)
+        payload = {
+            "model": self.model,
+            "prompt": self.prompt,
+            "images": [encoded],
+            "stream": False,
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = request.Request(
+            self.endpoint,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with self._urlopen(req, timeout=self.timeout_seconds) as response:
+                raw = response.read().decode("utf-8")
+        except Exception as exc:
+            raise RuntimeError(
+                "Typhoon OCR via Ollama is not available. Start Ollama and pull the configured model first."
+            ) from exc
+        text = _extract_typhoon_response_text(raw)
+        return (text, 0.75 if text else 0.0)
 
 
 class PaddleOcrEngine(OcrEngine):
@@ -243,10 +291,41 @@ def create_ocr_engine(
 ) -> OcrEngine:
     if not prefer_paddle:
         return PlaceholderOcrEngine()
+    engine_name = os.environ.get("RAPE_OCR_ENGINE", "paddleocr").strip().lower()
+    if engine_name in {"typhoon", "typhoon_ollama", "ollama_typhoon"}:
+        return TyphoonOllamaOcrEngine()
     try:
         return PaddleOcrEngine(verbose=verbose, model_config_path=model_config_path)
     except RuntimeError:
         return PlaceholderOcrEngine()
+
+
+def _encode_image_png_base64(image) -> str:
+    cv2 = _load_cv2()
+    if cv2 is None or image is None:
+        raise RuntimeError("OpenCV image encoding is required for Typhoon OCR.")
+    ok, buffer = cv2.imencode(".png", image)
+    if not ok:
+        raise RuntimeError("Could not encode image for Typhoon OCR.")
+    return base64.b64encode(buffer.tobytes()).decode("ascii")
+
+
+def _extract_typhoon_response_text(raw: str) -> str:
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return raw.strip()
+    if isinstance(data, dict):
+        for key in ("response", "text", "content"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        message = data.get("message")
+        if isinstance(message, dict):
+            content = message.get("content")
+            if isinstance(content, str):
+                return content.strip()
+    return ""
 
 
 def _load_ocr_model_options(

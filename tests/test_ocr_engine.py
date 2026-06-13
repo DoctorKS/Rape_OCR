@@ -1,10 +1,13 @@
 import unittest
+from unittest.mock import patch
 
 from rape_ocr.ocr_service import (
     PlaceholderOcrEngine,
+    TyphoonOllamaOcrEngine,
     _detect_pattern_from_text,
     _deskew_image,
     _extract_page_text_items,
+    _extract_typhoon_response_text,
     _layout_prediction_for_field,
     _load_ocr_model_options,
     _normalize_case_code,
@@ -41,6 +44,57 @@ class OcrEngineTest(unittest.TestCase):
 
         self.assertIsNotNone(engine)
         self.assertTrue(hasattr(engine, "recognize"))
+
+    def test_create_ocr_engine_can_select_typhoon_ollama(self):
+        with patch.dict("os.environ", {"RAPE_OCR_ENGINE": "typhoon_ollama"}):
+            engine = create_ocr_engine(prefer_paddle=True)
+
+        self.assertIsInstance(engine, TyphoonOllamaOcrEngine)
+        self.assertEqual(engine.name, "typhoon_ollama")
+
+    def test_extracts_typhoon_ollama_response_text(self):
+        self.assertEqual(_extract_typhoon_response_text('{"response":"ข้อความ"}'), "ข้อความ")
+        self.assertEqual(_extract_typhoon_response_text('{"message":{"content":"ชื่อ"}}'), "ชื่อ")
+
+    def test_typhoon_ollama_engine_sends_image_payload(self):
+        try:
+            import numpy as np
+        except Exception as exc:
+            raise unittest.SkipTest("numpy is required for Typhoon payload test") from exc
+
+        captured = {}
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                return False
+
+            def read(self):
+                return b'{"response":"sample text"}'
+
+        def fake_urlopen(req, timeout):
+            captured["url"] = req.full_url
+            captured["body"] = req.data.decode("utf-8")
+            captured["timeout"] = timeout
+            return FakeResponse()
+
+        image = np.full((12, 24, 3), 255, dtype=np.uint8)
+        engine = TyphoonOllamaOcrEngine(
+            model="test-model",
+            endpoint="http://localhost:11434/api/generate",
+            urlopen=fake_urlopen,
+        )
+
+        text, confidence = engine.recognize(image)
+
+        self.assertEqual(text, "sample text")
+        self.assertGreater(confidence, 0)
+        self.assertIn("api/generate", captured["url"])
+        self.assertIn('"model": "test-model"', captured["body"])
+        self.assertIn('"stream": false', captured["body"])
+        self.assertIn('"images": ["', captured["body"])
 
     def test_detect_pattern_from_ppk_text(self):
         self.assertEqual(
