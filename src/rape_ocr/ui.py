@@ -5,7 +5,7 @@ from pathlib import Path
 from .config import load_patterns
 from .dataset_reprocess import DatasetReprocessor
 from .export_mapping import build_docx_export_payload
-from .ocr_service import OcrService, _normalize_result_choice, create_ocr_engine
+from .ocr_service import OcrService, create_ocr_engine, normalize_field_value
 from .recycling import RecyclingDataset
 from .storage import AppStorage
 from .template_service import DocxTemplateService
@@ -327,13 +327,22 @@ def run_gui() -> int:
             if self.current_job is None:
                 QMessageBox.warning(self, "No job", "No OCR job to export.")
                 return
-            template_path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Select DOCX template",
-                str(Path("docs/example").resolve()),
-                "Word documents (*.docx)",
-            )
-            if not template_path:
+            template_path = Path("docs/example/prototype.docx").resolve()
+            if not template_path.exists():
+                QMessageBox.warning(
+                    self,
+                    "Missing DOCX template",
+                    f"Default template not found:\n{template_path}",
+                )
+                return
+            self.apply_reviewed_values()
+            payload = build_docx_export_payload(self.current_job.fields)
+            if not self.templates.has_fill_targets(template_path, payload.values, payload.date_values):
+                QMessageBox.warning(
+                    self,
+                    "Invalid DOCX template",
+                    f"The default DOCX template does not contain fillable placeholders/content controls:\n{template_path}",
+                )
                 return
             output_path, _ = QFileDialog.getSaveFileName(
                 self,
@@ -343,12 +352,10 @@ def run_gui() -> int:
             )
             if not output_path:
                 return
-            self.apply_reviewed_values()
             self.storage.save_job(self.current_job, status="reviewed")
             self.recycling.save_reviewed_job(self.current_job)
-            payload = build_docx_export_payload(self.current_job.fields)
             saved_path = self.templates.fill(
-                Path(template_path),
+                template_path,
                 Path(output_path),
                 payload.values,
                 payload.date_values,
@@ -360,9 +367,14 @@ def run_gui() -> int:
                 return
             for row, field in enumerate(self.current_job.fields):
                 item = self.table.item(row, 2)
-                field.reviewed_value = item.text() if item is not None else field.prediction
-                if field.kind == "result_choice" and field.reviewed_value != "-":
-                    field.reviewed_value = _normalize_result_choice(field.reviewed_value)
+                reviewed = item.text() if item is not None else field.prediction
+                field.reviewed_value = normalize_field_value(
+                    self.current_job.pattern_name,
+                    field.name,
+                    field.kind,
+                    reviewed,
+                    reviewed,
+                )
                 field.status = "reviewed"
 
     app = QApplication([])

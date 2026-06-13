@@ -15,6 +15,10 @@ class ExportMappingTest(unittest.TestCase):
             self.field("hospital", "Hospital A"),
             self.field("age", "11"),
             self.field("hn", "171338"),
+            self.field("collection_date", "12/01/69"),
+            self.field("collection_time", "14.00"),
+            self.field("specimen_regis_date", "13/01/69"),
+            self.field("lower_right_handwritten_date", "14/01/69"),
             self.field("lower_right_handwritten_note", "note"),
             self.field("vaginal_result", "negative"),
             self.field("endocervical_result", "positive"),
@@ -27,6 +31,10 @@ class ExportMappingTest(unittest.TestCase):
         self.assertEqual(payload.values["i5"], "Hospital A")
         self.assertEqual(payload.values["i3"], "11")
         self.assertEqual(payload.values["i4"], "171338")
+        self.assertEqual(payload.values["i6"], "12/01/69")
+        self.assertEqual(payload.values["i7"], "14.00")
+        self.assertEqual(payload.values["i8"], "13/01/69")
+        self.assertEqual(payload.values["i9"], "14/01/69")
         self.assertEqual(payload.values["i1"], "note")
         self.assertEqual(payload.values["R1"], "Absence of spermatozoa")
         self.assertEqual(payload.values["R2"], "Presence of spermatozoa")
@@ -49,6 +57,8 @@ class ExportMappingTest(unittest.TestCase):
             self.field("age", "16"),
             self.field("hn", "4807790"),
             self.field("collection_date", "18/05/2569"),
+            self.field("collection_time", "12.55"),
+            self.field("specimen_regis_date", "18/05/2569"),
             self.field("handwritten_date", "04/06/69"),
             self.field("handwritten_number", "5043/69"),
             self.field("vulvar_result", "negative"),
@@ -62,6 +72,9 @@ class ExportMappingTest(unittest.TestCase):
         self.assertEqual(payload.values["i2"], "Patient B")
         self.assertEqual(payload.values["i3"], "16")
         self.assertEqual(payload.values["i4"], "4807790")
+        self.assertEqual(payload.values["i6"], "18/05/2569")
+        self.assertEqual(payload.values["i7"], "12.55")
+        self.assertEqual(payload.values["i8"], "18/05/2569")
         self.assertEqual(payload.values["R1"], "Absence of spermatozoa")
         self.assertEqual(payload.values["R2"], "Absence of spermatozoa")
         self.assertEqual(payload.values["R3"], "Absence of spermatozoa")

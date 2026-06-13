@@ -498,6 +498,7 @@ def _layout_prediction_for_field(
     pattern_name: str,
     field_name: str,
     page_items: list[PageText],
+    expected_bbox: BBox | None = None,
 ) -> tuple[str, float] | None:
     if pattern_name != "rural_rape" or field_name not in {
         "patient_name",
@@ -509,6 +510,15 @@ def _layout_prediction_for_field(
     }:
         return None
     items = [item for item in page_items if item[1][1] < 0.28]
+    if expected_bbox is not None and field_name in {"age", "hn", "collection_date", "collection_time"}:
+        positioned = [
+            item
+            for item in items
+            if _bbox_intersects(item[1], _expand_bbox(expected_bbox, 0.08, 0.03))
+            or _bbox_contains_center(_expand_bbox(expected_bbox, 0.08, 0.03), item[1])
+        ]
+        if positioned:
+            items = positioned
     if field_name == "patient_name":
         return _layout_value_after_label(items, "name", max_y_delta=0.02, max_x=0.55)
     if field_name == "hospital":
@@ -577,6 +587,27 @@ def _layout_collection_date(items: list[PageText]) -> tuple[str, float] | None:
 
 def _bbox_center_y(bbox: BBox) -> float:
     return (bbox[1] + bbox[3]) / 2
+
+
+def _bbox_contains_center(container: BBox, candidate: BBox) -> bool:
+    left, top, right, bottom = container
+    x = (candidate[0] + candidate[2]) / 2
+    y = (candidate[1] + candidate[3]) / 2
+    return left <= x <= right and top <= y <= bottom
+
+
+def _bbox_intersects(first: BBox, second: BBox) -> bool:
+    return not (
+        first[2] < second[0]
+        or second[2] < first[0]
+        or first[3] < second[1]
+        or second[3] < first[1]
+    )
+
+
+def _expand_bbox(bbox: BBox, pad_x: float, pad_y: float) -> BBox:
+    left, top, right, bottom = bbox
+    return _clamp_bbox((left - pad_x, top - pad_y, right + pad_x, bottom + pad_y))
 
 
 class OcrService:
@@ -682,11 +713,11 @@ class OcrService:
             else:
                 ocr_image = self._prepare_ocr_crop(crop, config.preprocess or config.kind)
                 raw_prediction, confidence = self.engine.recognize(ocr_image if ocr_image is not None else image)
-                layout_prediction = _layout_prediction_for_field(pattern.name, config.name, page_items)
+                layout_prediction = _layout_prediction_for_field(pattern.name, config.name, page_items, config.bbox)
                 if layout_prediction is not None:
                     raw_prediction, confidence = layout_prediction
                 prediction = _normalize_field_prediction(config.kind, raw_prediction)
-                prediction = _normalize_named_field_prediction(
+                prediction = normalize_field_value(
                     pattern.name,
                     config.name,
                     config.kind,
@@ -811,6 +842,20 @@ def _normalize_field_prediction(kind: str, raw_prediction: str) -> str:
     return raw_prediction
 
 
+def normalize_field_value(
+    pattern_name: str,
+    field_name: str,
+    kind: str,
+    prediction: str,
+    raw_prediction: str | None = None,
+    default_value: str | None = None,
+) -> str:
+    if prediction == "-":
+        return "-"
+    raw = prediction if raw_prediction is None else raw_prediction
+    return _normalize_named_field_prediction(pattern_name, field_name, kind, prediction, raw, default_value)
+
+
 def _normalize_named_field_prediction(
     pattern_name: str,
     field_name: str,
@@ -828,10 +873,24 @@ def _normalize_named_field_prediction(
         value = _thai_text_only(prediction)
         if pattern_name == "rural_rape" and value == _ppk_hospital_name():
             return default_value or ""
+        if pattern_name == "rural_rape" and _looks_like_long_sentence(value):
+            return ""
         return value
     if field_name == "collection_date":
         return _normalize_text_date(source)
+    if field_name in {
+        "specimen_regis_date",
+        "extraction_date",
+        "sperm_exam_date",
+    }:
+        return _normalize_short_date(source)
     if field_name in {"collection_time", "handwritten_date"}:
+        return _normalize_dot_number(source)
+    if field_name in {
+        "specimen_regis_time",
+        "extraction_time",
+        "sperm_exam_time",
+    }:
         return _normalize_dot_number(source)
     if field_name == "handwritten_number":
         return _normalize_s_number(raw_prediction)
@@ -872,12 +931,30 @@ def _thai_text_only(text: str) -> str:
     return " ".join(re.findall(r"[\u0e00-\u0e7f]+", text.strip()))
 
 
+def _looks_like_long_sentence(text: str) -> bool:
+    compact = text.replace(" ", "")
+    if len(compact) > 28:
+        return True
+    return len(re.findall(r"[\u0e00-\u0e7f]+", text)) > 4
+
+
 def _normalize_text_date(text: str) -> str:
     normalized = _translate_thai_digits(text)
     match = re.search(r"(\d+)\s+([A-Za-z\u0e00-\u0e7f.]+)\s+(\d+)", normalized)
     if match:
         return f"{match.group(1)} {match.group(2)} {match.group(3)}"
     return ""
+
+
+def _normalize_short_date(text: str) -> str:
+    normalized = _translate_thai_digits(text)
+    slash_match = re.search(r"(\d{1,2})\s*[/.-]\s*(\d{1,2})\s*[/.-]\s*(\d{2,4})", normalized)
+    if slash_match:
+        return f"{slash_match.group(1)}/{slash_match.group(2)}/{slash_match.group(3)}"
+    dot_match = re.search(r"(\d{1,2})\s*[.]\s*(\d{1,2})(?!\d)", normalized)
+    if dot_match:
+        return f"{dot_match.group(1)}.{dot_match.group(2)}"
+    return _normalize_text_date(normalized)
 
 
 def _normalize_dot_number(text: str) -> str:

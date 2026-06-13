@@ -15,6 +15,7 @@ from rape_ocr.ocr_service import (
     _normalize_named_field_prediction,
     _normalize_result_choice,
     create_ocr_engine,
+    normalize_field_value,
 )
 
 
@@ -176,6 +177,41 @@ class OcrEngineTest(unittest.TestCase):
         self.assertEqual(
             _layout_prediction_for_field("rural_rape", "patient_name", items)[0],
             "sample patient",
+        )
+
+    def test_rural_header_layout_prediction_respects_field_position(self):
+        items = [
+            ("HN: 11111", (0.20, 0.18, 0.30, 0.20), 0.8),
+            ("HN: 6303163", (0.84, 0.18, 0.94, 0.20), 0.9),
+        ]
+
+        self.assertEqual(
+            _layout_prediction_for_field("rural_rape", "hn", items, (0.83, 0.15, 0.97, 0.20))[0],
+            "6303163",
+        )
+
+    def test_field_validation_rejects_values_outside_known_conditions(self):
+        self.assertEqual(
+            normalize_field_value(
+                "rural_rape",
+                "hospital",
+                "hospital_name",
+                "พืชผักและผลไม้หลายชนิดมีการใช้ประโยชน์จากใบมากกว่า",
+                "พืชผักและผลไม้หลายชนิดมีการใช้ประโยชน์จากใบมากกว่า",
+            ),
+            "",
+        )
+        self.assertEqual(
+            normalize_field_value("rural_rape", "specimen_regis_date", "text", "ficer only", "ficer only"),
+            "",
+        )
+        self.assertEqual(
+            normalize_field_value("rural_rape", "collection_time", "text", "15:30 น.", "15:30 น."),
+            "15.30",
+        )
+        self.assertEqual(
+            normalize_field_value("ppk_rape", "handwritten_number", "case_code", "S042/69", "S042/69"),
+            "S042/69",
         )
 
     def test_normalize_case_code(self):

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .domain import OcrJob
-from .ocr_service import OcrService, _normalize_result_choice
+from .ocr_service import OcrService, normalize_field_value
 from .recycling import RecyclingDataset, RecyclingEntry
 from .storage import AppStorage
 
@@ -167,7 +167,15 @@ def _carry_reviewed_values(job: OcrJob, payload: dict) -> None:
         if field.name not in reviewed:
             continue
         value = reviewed[field.name]
-        field.reviewed_value = None if value is None else str(value)
-        if field.kind == "result_choice" and field.reviewed_value != "-":
-            field.reviewed_value = _normalize_result_choice(field.reviewed_value)
+        if value is None:
+            field.reviewed_value = None
+        else:
+            reviewed_value = str(value)
+            field.reviewed_value = normalize_field_value(
+                job.pattern_name,
+                field.name,
+                field.kind,
+                reviewed_value,
+                reviewed_value,
+            )
         field.status = "reviewed"

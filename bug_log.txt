@@ -172,3 +172,25 @@ Rape OCR Bug Log
   - `configs/ocr_models.json` keeps a portable project-relative recognition model path.
 - Verification:
   - Added regression tests that relative train/export model paths resolve under the project folder.
+
+2026-06-13 - [fixed] DOCX export reused already-filled documents as templates
+- Symptom:
+  - Export DOCX produced a document that still showed old patient data such as old HN/name/hospital instead of the current GUI reviewed values.
+- Cause:
+  - The GUI let users choose any `.docx` as a template. If a previously exported DOCX was selected, the original fill tokens/content controls such as `i1`, `i2`, `i3`, `i4`, `i5`, `R1`, `R2`, and `R3` were already replaced, so there was no target left for the exporter to update.
+- Fix:
+  - Export DOCX now uses `docs/example/prototype.docx` as the default template automatically, so users only choose the output file path.
+  - Added a template target check to detect DOCX files that no longer contain fill targets.
+- Verification:
+  - Added a regression test for detecting template fill targets versus already-filled DOCX files.
+
+2026-06-13 - [fixed] new prototype did not fill date/time tokens I6-I9
+- Symptom:
+  - The new `docs/example/prototype.docx` uses text tokens `I6`, `I7`, `I8`, and `I9` for collection/registration/report date-time fields, but the exporter only filled lowercase `i` tokens and date content controls.
+- Cause:
+  - The DOCX exact-text and tag replacement logic was case-sensitive for `i` tokens, and the prototype export mapping did not include the new `i6`-`i9` fields.
+- Fix:
+  - Mapped `collection_date` to `i6`, `collection_time` to `i7`, `specimen_regis_date` to `i8`, and `lower_right_handwritten_date` to `i9`.
+  - Made DOCX text-token replacement and target detection treat `i` tokens case-insensitively, so `I6` can be filled from `i6`.
+- Verification:
+  - Added regression tests for `i6`-`i9` export mapping and uppercase `I6` DOCX token filling.
