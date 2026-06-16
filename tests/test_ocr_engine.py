@@ -293,7 +293,7 @@ class OcrEngineTest(unittest.TestCase):
         )
         self.assertEqual(
             _normalize_named_field_prediction("rural_rape", "collection_date", "text", "18/05/2569", "18/05/2569"),
-            "",
+            "18/05/2569",
         )
         self.assertEqual(
             _normalize_named_field_prediction("rural_rape", "collection_time", "text", "เวลา 21.00 น.", "เวลา 21.00 น."),
@@ -325,6 +325,10 @@ class OcrEngineTest(unittest.TestCase):
         self.assertEqual(
             _normalize_named_field_prediction("ppk_rape", "handwritten_date", "table_date", "4.06", "4.06"),
             "4.06",
+        )
+        self.assertEqual(
+            _normalize_named_field_prediction("ppk_rape", "handwritten_date", "table_date", "12-06-69", "12-06-69"),
+            "12/06/69",
         )
         self.assertEqual(
             _normalize_named_field_prediction("ppk_rape", "handwritten_number", "case_code", "5042/69", "S042/69"),

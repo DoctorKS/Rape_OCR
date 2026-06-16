@@ -75,10 +75,29 @@ class ExportMappingTest(unittest.TestCase):
         self.assertEqual(payload.values["i6"], "18/05/2569")
         self.assertEqual(payload.values["i7"], "12.55")
         self.assertEqual(payload.values["i8"], "18/05/2569")
+        self.assertEqual(payload.values["i9"], "04/06/69")
         self.assertEqual(payload.values["R1"], "Absence of spermatozoa")
         self.assertEqual(payload.values["R2"], "Absence of spermatozoa")
         self.assertEqual(payload.values["R3"], "Absence of spermatozoa")
         self.assertEqual(payload.date_values, ["18/05/69", "18/05/69", "04/06/69"])
+
+    def test_ppk_export_fills_prototype_date_tokens_from_reviewed_dates(self):
+        fields = [
+            self.field("collection_date", "23/05/69"),
+            self.field("collection_time", "13.20"),
+            self.field("handwritten_date", "12-06-69"),
+            self.field("vulvar_result", "Absence"),
+            self.field("vaginal_result", "Absence"),
+            self.field("endocervical_result", "'"),
+        ]
+
+        payload = build_docx_export_payload(fields)
+
+        self.assertEqual(payload.values["i6"], "23/05/69")
+        self.assertEqual(payload.values["i7"], "13.20")
+        self.assertEqual(payload.values["i8"], "23/05/69")
+        self.assertEqual(payload.values["i9"], "12-06-69")
+        self.assertEqual(payload.values["R3"], "")
 
     def test_formats_common_ocr_date_variants(self):
         self.assertEqual(format_date_for_docx("15 พ.ค. 2569"), "15/05/69")

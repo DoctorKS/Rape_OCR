@@ -215,3 +215,18 @@ Rape OCR Bug Log
   - Pattern detection now checks header crops from the original image and from 90-degree clockwise/counter-clockwise rotations before defaulting to rural.
 - Verification:
   - Added a regression test for detecting PPK from a rotated header area.
+
+2026-06-16 - [fixed] PPK DOCX export did not fill i6/i8/i9 reliably
+- Symptom:
+  - Generated DOCX showed date fields as partial day values such as `16`, `18`, or `19`, and `R3` could remain visible instead of being cleared.
+- Cause:
+  - PPK payload did not map `handwritten_date` to prototype token `i9`.
+  - PPK has no `specimen_regis_date`, so prototype token `i8` was not populated from `collection_date`.
+  - GUI export validates reviewed values before building the DOCX payload, and slash/dash reviewed dates could be normalized to empty by the stricter OCR date validator.
+- Fix:
+  - Mapped `handwritten_date` to `i9`.
+  - Added `i8` fallback from `collection_date`.
+  - Allowed reviewed collection/handwritten dates in slash or dash date format.
+  - Cleared result placeholders such as `R3` when the reviewed result is not a valid Presence/Absence value.
+- Verification:
+  - Added regression tests for PPK `i6`, `i8`, `i9`, and `R3` payload/template filling.

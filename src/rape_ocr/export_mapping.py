@@ -17,6 +17,7 @@ PROTOTYPE_TEXT_FIELD_MAP = {
     "collection_time": "i7",
     "specimen_regis_date": "i8",
     "lower_right_handwritten_date": "i9",
+    "handwritten_date": "i9",
     "vaginal_result": "R1",
     "endocervical_result": "R2",
     "r3_result": "R3",
@@ -94,6 +95,9 @@ def build_docx_export_payload(fields: list[FieldResult]) -> DocxExportPayload:
     for field in fields:
         value = normalize_export_value(field.name, field.final_value)
         if not value or value == "-":
+            prototype_key = _prototype_text_key(field.name, is_ppk)
+            if prototype_key and field.name in RESULT_CHOICE_FIELDS:
+                values[prototype_key] = ""
             continue
 
         values_by_name[field.name] = value
@@ -104,6 +108,11 @@ def build_docx_export_payload(fields: list[FieldResult]) -> DocxExportPayload:
         prototype_key = _prototype_text_key(field.name, is_ppk)
         if prototype_key:
             values[prototype_key] = value
+
+    if "i8" not in values and values_by_name.get("collection_date"):
+        values["i8"] = values_by_name["collection_date"]
+    if "i9" not in values and values_by_name.get("handwritten_date"):
+        values["i9"] = values_by_name["handwritten_date"]
 
     date_values = _prototype_date_values(values_by_name)
     return DocxExportPayload(values=values, date_values=date_values)

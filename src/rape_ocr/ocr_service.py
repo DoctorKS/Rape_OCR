@@ -920,14 +920,16 @@ def _normalize_named_field_prediction(
             return ""
         return value
     if field_name == "collection_date":
-        return _normalize_text_date(source)
+        return _normalize_short_date(source)
     if field_name in {
         "specimen_regis_date",
         "extraction_date",
         "sperm_exam_date",
     }:
         return _normalize_short_date(source)
-    if field_name in {"collection_time", "handwritten_date"}:
+    if field_name == "handwritten_date":
+        return _normalize_short_date(source)
+    if field_name == "collection_time":
         return _normalize_dot_number(source)
     if field_name in {
         "specimen_regis_time",
