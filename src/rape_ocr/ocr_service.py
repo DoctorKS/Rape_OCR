@@ -638,24 +638,50 @@ class OcrService:
         image = cv2.imread(str(image_path)) if cv2 is not None else None
         if image is None:
             return None
-        height, _width = image.shape[:2]
-        header = image[: max(1, round(height * PATTERN_HEADER_RATIO)), :]
+        saw_text = False
+        for candidate in self._pattern_header_candidates(image):
+            text = self._recognize_pattern_text(candidate)
+            if text:
+                saw_text = True
+            if _detect_pattern_from_text(text) == "ppk_rape":
+                return "ppk_rape"
+        text = self._recognize_pattern_text(image)
+        if text:
+            saw_text = True
+        if _detect_pattern_from_text(text) == "ppk_rape":
+            return "ppk_rape"
+        return "rural_rape" if saw_text else None
+
+    @staticmethod
+    def _pattern_header_candidates(image) -> list:
+        cv2 = _load_cv2()
+        candidates = [image]
+        if cv2 is not None:
+            candidates.extend(
+                [
+                    cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE),
+                    cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE),
+                ]
+            )
+        headers = []
+        for candidate in candidates:
+            height, _width = candidate.shape[:2]
+            headers.append(candidate[: max(1, round(height * PATTERN_HEADER_RATIO)), :])
+        return headers
+
+    def _recognize_pattern_text(self, image) -> str:
         try:
-            page_items = self.engine.recognize_layout(header)
+            page_items = self.engine.recognize_layout(image)
         except Exception:
             page_items = []
         text = " ".join(item[0] for item in page_items)
-        if not text:
-            try:
-                text, _confidence = self.engine.recognize(header)
-            except Exception:
-                text = ""
-        if not text:
-            try:
-                text, _confidence = self.engine.recognize(image)
-            except Exception:
-                text = ""
-        return _detect_pattern_from_text(text)
+        if text:
+            return text
+        try:
+            text, _confidence = self.engine.recognize(image)
+        except Exception:
+            text = ""
+        return text
 
     def process(
         self,

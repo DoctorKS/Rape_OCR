@@ -205,3 +205,13 @@ Rape OCR Bug Log
   - Made relative crop generation return `None` when the requested bbox has no valid image area.
 - Verification:
   - Added regression tests for clean empty-crop rejection and for skipping out-of-bounds OCR crops without calling the OCR engine.
+
+2026-06-16 - [fixed] rotated PPK report detected as rural
+- Symptom:
+  - A PPK report photo such as `S__29835274_0.jpg` was classified as `rural_rape` even though the page header contains `โรงพยาบาลพระปกเกล้า`.
+- Cause:
+  - Pattern detection only OCRed the top 35% of the original image. In portrait photos of a sideways report, the PPK header is in the right-side band, so the detector did not see the hospital header and fell back to `rural_rape`.
+- Fix:
+  - Pattern detection now checks header crops from the original image and from 90-degree clockwise/counter-clockwise rotations before defaulting to rural.
+- Verification:
+  - Added a regression test for detecting PPK from a rotated header area.
