@@ -3,9 +3,11 @@ from unittest.mock import patch
 
 from rape_ocr.ocr_service import (
     PlaceholderOcrEngine,
+    OcrService,
     TyphoonOllamaOcrEngine,
     _detect_pattern_from_text,
     _deskew_image,
+    _encode_image_png_base64,
     _extract_page_text_items,
     _extract_typhoon_response_text,
     _layout_prediction_for_field,
@@ -17,6 +19,7 @@ from rape_ocr.ocr_service import (
     create_ocr_engine,
     normalize_field_value,
 )
+from rape_ocr.domain import FieldConfig, PatternConfig
 
 
 class OcrEngineTest(unittest.TestCase):
@@ -96,6 +99,50 @@ class OcrEngineTest(unittest.TestCase):
         self.assertIn('"model": "test-model"', captured["body"])
         self.assertIn('"stream": false', captured["body"])
         self.assertIn('"images": ["', captured["body"])
+
+    def test_typhoon_image_encoding_rejects_empty_crop_cleanly(self):
+        try:
+            import numpy as np
+        except Exception as exc:
+            raise unittest.SkipTest("numpy is required for empty crop test") from exc
+
+        with self.assertRaisesRegex(RuntimeError, "image encoding"):
+            _encode_image_png_base64(np.zeros((0, 10, 3), dtype=np.uint8))
+
+    def test_process_skips_empty_out_of_bounds_crop(self):
+        try:
+            import cv2
+            import numpy as np
+            import tempfile
+            from pathlib import Path
+        except Exception as exc:
+            raise unittest.SkipTest("opencv and numpy are required for empty crop test") from exc
+
+        class FailOnRecognizeEngine(PlaceholderOcrEngine):
+            def recognize(self, image):
+                raise AssertionError("empty crop should not be sent to OCR engine")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = Path(tmp) / "sample.jpg"
+            cv2.imwrite(str(image_path), np.full((20, 20, 3), 255, dtype=np.uint8))
+            pattern = PatternConfig(
+                name="test_pattern",
+                display_name="Test",
+                version="1",
+                fields=(
+                    FieldConfig(
+                        name="field",
+                        label="field",
+                        bbox=(1.0, 0.0, 1.1, 0.1),
+                    ),
+                ),
+            )
+            service = OcrService({"test_pattern": pattern}, engine=FailOnRecognizeEngine())
+
+            job = service.process(image_path, pattern_name="test_pattern")
+
+        self.assertEqual(job.fields[0].prediction, "")
+        self.assertEqual(job.fields[0].confidence, 0.0)
 
     def test_detect_pattern_from_ppk_text(self):
         self.assertEqual(

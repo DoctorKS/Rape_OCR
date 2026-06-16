@@ -194,3 +194,14 @@ Rape OCR Bug Log
   - Made DOCX text-token replacement and target detection treat `i` tokens case-insensitively, so `I6` can be filled from `i6`.
 - Verification:
   - Added regression tests for `i6`-`i9` export mapping and uppercase `I6` DOCX token filling.
+
+2026-06-16 - [fixed] OpenCV imencode crash on empty OCR crop
+- Symptom:
+  - GUI showed `OCR failed` with OpenCV `(-215:Assertion failed) !image.empty()` in `cv::imencodeWithMetadata` while running OCR.
+- Cause:
+  - Some field bbox/anchor crops could land outside the image boundary and produce an empty crop. Typhoon OCR then tried to PNG-encode that empty crop with OpenCV.
+- Fix:
+  - Added empty-image checks before OpenCV encoding, preprocessing, checkbox detection, and OCR engine calls.
+  - Made relative crop generation return `None` when the requested bbox has no valid image area.
+- Verification:
+  - Added regression tests for clean empty-crop rejection and for skipping out-of-bounds OCR crops without calling the OCR engine.

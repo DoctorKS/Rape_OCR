@@ -302,12 +302,19 @@ def create_ocr_engine(
 
 def _encode_image_png_base64(image) -> str:
     cv2 = _load_cv2()
-    if cv2 is None or image is None:
+    if cv2 is None or _is_empty_image(image):
         raise RuntimeError("OpenCV image encoding is required for Typhoon OCR.")
     ok, buffer = cv2.imencode(".png", image)
     if not ok:
         raise RuntimeError("Could not encode image for Typhoon OCR.")
     return base64.b64encode(buffer.tobytes()).decode("ascii")
+
+
+def _is_empty_image(image) -> bool:
+    if image is None:
+        return True
+    shape = getattr(image, "shape", ())
+    return not shape or any(dimension <= 0 for dimension in shape[:2])
 
 
 def _extract_typhoon_response_text(raw: str) -> str:
@@ -712,7 +719,11 @@ class OcrService:
                 raw_prediction = prediction
             else:
                 ocr_image = self._prepare_ocr_crop(crop, config.preprocess or config.kind)
-                raw_prediction, confidence = self.engine.recognize(ocr_image if ocr_image is not None else image)
+                target_image = ocr_image if not _is_empty_image(ocr_image) else crop
+                if _is_empty_image(target_image):
+                    raw_prediction, confidence = "", 0.0
+                else:
+                    raw_prediction, confidence = self.engine.recognize(target_image)
                 layout_prediction = _layout_prediction_for_field(pattern.name, config.name, page_items, config.bbox)
                 if layout_prediction is not None:
                     raw_prediction, confidence = layout_prediction
@@ -744,11 +755,17 @@ class OcrService:
 
     @staticmethod
     def _crop_relative(image, bbox, width: int, height: int):
+        if _is_empty_image(image) or width <= 0 or height <= 0:
+            return None
         left, top, right, bottom = bbox
-        x1 = max(0, min(width, round(left * width)))
-        y1 = max(0, min(height, round(top * height)))
-        x2 = max(x1 + 1, min(width, round(right * width)))
-        y2 = max(y1 + 1, min(height, round(bottom * height)))
+        if left >= 1.0 or top >= 1.0 or right <= 0.0 or bottom <= 0.0:
+            return None
+        x1 = max(0, min(width - 1, round(left * width)))
+        y1 = max(0, min(height - 1, round(top * height)))
+        x2 = max(0, min(width, round(right * width)))
+        y2 = max(0, min(height, round(bottom * height)))
+        if x2 <= x1 or y2 <= y1:
+            return None
         return image[y1:y2, x1:x2]
 
     @staticmethod
@@ -784,7 +801,7 @@ class OcrService:
 
     @staticmethod
     def _detect_checkbox(crop) -> tuple[str, float]:
-        if crop is None:
+        if _is_empty_image(crop):
             return "unchecked", 0.0
         cv2 = _load_cv2()
         if cv2 is None:
@@ -795,7 +812,7 @@ class OcrService:
 
     @staticmethod
     def _prepare_ocr_crop(crop, mode: str | None):
-        if crop is None:
+        if _is_empty_image(crop):
             return None
         cv2 = _load_cv2()
         if cv2 is None:
