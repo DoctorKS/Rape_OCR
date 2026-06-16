@@ -194,6 +194,13 @@
       "preprocess": "case_code"
     },
     {
+      "name": "vulvar_result",
+      "label": "Vulvar result",
+      "bbox": [0.12, 0.895, 0.38, 0.975],
+      "kind": "result_choice",
+      "docx_tag": "vulvar_result"
+    },
+    {
       "name": "vaginal_result",
       "label": "Vaginal result",
       "bbox": [0.12, 0.895, 0.38, 0.975],

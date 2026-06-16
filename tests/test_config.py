@@ -43,3 +43,11 @@ class ConfigTest(unittest.TestCase):
 
         for name in ("patient_name", "age", "hn", "hospital", "collection_date", "collection_time"):
             self.assertIsNotNone(fields[name].anchor, name)
+
+    def test_rural_result_fields_include_all_three_specimen_sites(self):
+        patterns = load_patterns()
+        fields = {field.name: field for field in patterns["rural_rape"].fields}
+
+        for name in ("vulvar_result", "vaginal_result", "endocervical_result"):
+            self.assertIn(name, fields)
+            self.assertEqual(fields[name].kind, "result_choice")
