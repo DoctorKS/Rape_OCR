@@ -94,7 +94,14 @@ class DataEntryUiTest(unittest.TestCase):
         if not template_path.exists():
             self.skipTest("prototype.docx is required")
         values = {key: f"value-{key}" for key in ENTRY_KEYS}
-        values["i8"] = ""
+        values.update(
+            {
+                "i6": "23/06/69",
+                "i7": "14:20 น.",
+                "i8": "24/06/69",
+                "i9": "25/06/69",
+            }
+        )
 
         with tempfile.TemporaryDirectory() as tmp:
             output_path = Path(tmp) / "generated.docx"
@@ -110,6 +117,8 @@ class DataEntryUiTest(unittest.TestCase):
             self.assertNotIn(f">{key.upper()}<", document_xml)
         self.assertIn("value-i1", document_xml)
         self.assertIn("value-R3", document_xml)
+        for value in ("23/06/69", "14:20 น.", "24/06/69", "25/06/69"):
+            self.assertIn(value, document_xml)
         for key in ("R1", "R2", "R3"):
             self.assertRegex(
                 document_xml,

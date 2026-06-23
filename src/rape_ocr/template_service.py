@@ -46,6 +46,7 @@ class DocxTemplateService:
         document_xml = entries[document_name].decode("utf-8")
         document_xml = self._replace_placeholders(document_xml, values)
         document_xml = self._replace_result_text_fields(document_xml, values)
+        document_xml = self._replace_split_content_control_fields(document_xml, values)
         document_xml = self._replace_exact_text_fields(document_xml, values)
         document_xml = self._replace_tagged_content_controls(document_xml, values)
         document_xml = self._replace_date_content_controls(document_xml, date_values)
@@ -71,7 +72,28 @@ class DocxTemplateService:
                     return True
                 if re.search(rf"<w:tag\s+w:val=\"{escaped_key}\"", document_xml):
                     return True
+        for content in DocxTemplateService._content_control_bodies(document_xml):
+            key = DocxTemplateService._combined_text(content)
+            if DocxTemplateService._value_for_target_key(values, key) is not None:
+                return True
         return False
+
+    @staticmethod
+    def _content_control_bodies(document_xml: str) -> list[str]:
+        return re.findall(
+            r"<w:sdtContent\b[^>]*>(.*?)</w:sdtContent>",
+            document_xml,
+            flags=re.DOTALL,
+        )
+
+    @staticmethod
+    def _combined_text(content_xml: str) -> str:
+        text_parts = re.findall(
+            r"<w:t(?:\s+[^>]*)?>(.*?)</w:t>",
+            content_xml,
+            flags=re.DOTALL,
+        )
+        return html.unescape("".join(text_parts)).strip()
 
     @staticmethod
     def _target_key_variants(key: str) -> set[str]:
@@ -126,6 +148,42 @@ class DocxTemplateService:
             document_xml,
             flags=re.DOTALL,
         )
+
+    @staticmethod
+    def _replace_split_content_control_fields(document_xml: str, values: dict[str, str]) -> str:
+        pattern = re.compile(
+            r"(<w:sdtContent\b[^>]*>)(.*?)(</w:sdtContent>)",
+            re.DOTALL,
+        )
+
+        def replace_control(match: re.Match[str]) -> str:
+            content = match.group(2)
+            key = DocxTemplateService._combined_text(content)
+            if not re.fullmatch(r"[iI]\d+", key):
+                return match.group(0)
+            value = DocxTemplateService._value_for_target_key(values, key)
+            if value is None:
+                return match.group(0)
+
+            replacement_used = False
+
+            def replace_text(text_match: re.Match[str]) -> str:
+                nonlocal replacement_used
+                start, end = text_match.groups()
+                if replacement_used:
+                    return f"{start}{end}"
+                replacement_used = True
+                return f"{start}{html.escape(value)}{end}"
+
+            updated_content = re.sub(
+                r"(<w:t(?:\s+[^>]*)?>).*?(</w:t>)",
+                replace_text,
+                content,
+                flags=re.DOTALL,
+            )
+            return f"{match.group(1)}{updated_content}{match.group(3)}"
+
+        return pattern.sub(replace_control, document_xml)
 
     @staticmethod
     def _replace_result_text_fields(document_xml: str, values: dict[str, str]) -> str:

@@ -84,6 +84,35 @@ class TemplateServiceTest(unittest.TestCase):
             self.assertIn("18/05/69", filled)
             self.assertNotIn(">I6<", filled)
 
+    def test_fills_i_token_split_across_content_control_runs(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            template_path = tmp_path / "template.docx"
+            output_path = tmp_path / "output.docx"
+            with zipfile.ZipFile(template_path, "w") as archive:
+                archive.writestr("[Content_Types].xml", "")
+                archive.writestr(
+                    "word/document.xml",
+                    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                    "<w:body><w:sdt><w:sdtContent><w:p>"
+                    "<w:r><w:t>i</w:t></w:r><w:r><w:t>6</w:t></w:r>"
+                    "</w:p></w:sdtContent></w:sdt></w:body></w:document>",
+                )
+
+            service = DocxTemplateService()
+
+            self.assertTrue(service.has_fill_targets(template_path, {"i6": "23/06/69"}))
+            service.fill(template_path, output_path, {"i6": "23/06/69"})
+
+            with zipfile.ZipFile(output_path, "r") as archive:
+                filled = archive.read("word/document.xml").decode("utf-8")
+            self.assertIn("23/06/69", filled)
+            self.assertNotIn("<w:t>i</w:t>", filled)
+            self.assertNotIn("<w:t>6</w:t>", filled)
+
     def test_result_tokens_are_filled_with_italic_run_formatting(self):
         import re
         import tempfile

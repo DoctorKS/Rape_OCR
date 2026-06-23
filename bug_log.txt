@@ -230,3 +230,15 @@ Rape OCR Bug Log
   - Cleared result placeholders such as `R3` when the reviewed result is not a valid Presence/Absence value.
 - Verification:
   - Added regression tests for PPK `i6`, `i8`, `i9`, and `R3` payload/template filling.
+
+2026-06-23 - [fixed] standalone DOCX entry app did not fill i6-i9
+- Symptom:
+  - Generated reports omitted Collection date, Collection time, Received date, and Reported date.
+- Cause:
+  - Word split each placeholder across two XML text runs, such as `i` and `6`, while the template service only matched complete placeholders inside one text run.
+  - The existing regression test checked that placeholders disappeared but did not assert that replacement values were present.
+- Fix:
+  - Added content-control replacement that combines split text runs before matching `i1-i9` placeholders.
+  - Added split-run target detection so templates containing only fragmented placeholders are recognized.
+- Verification:
+  - Added a synthetic split-run regression test and assertions for actual i6-i9 values in the current prototype.
