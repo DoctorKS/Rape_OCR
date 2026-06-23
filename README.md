@@ -167,6 +167,23 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m rape_ocr.main --gui
 ```
 
+เปิด GUI สำหรับกรอก `i1-i9` และ `R1-R3` ลง `docs/example/prototype.docx` โดยตรง:
+
+```powershell
+.\.venv\Scripts\python.exe -m rape_ocr.main --data-entry-gui
+```
+
+บน Windows สามารถดับเบิลคลิก `run_docx_entry_gui.bat` เพื่อเปิด GUI โดยไม่แสดงหน้าต่าง console ได้
+ปุ่ม `Tab` จะเลื่อนไปช่องถัดไปตามลำดับ และ `Enter` จะเปิดหน้าต่างเลือกชื่อ/ตำแหน่งไฟล์ DOCX ใหม่
+ปุ่ม `Clear` ใช้ล้างค่าทุกช่อง
+
+ไฟล์ executable อยู่ที่ `dist/Rape_DOCX_Entry.exe` และฝัง `prototype.docx` ไว้ภายในแล้ว
+สร้าง executable ใหม่ได้ด้วย:
+
+```powershell
+.\build_docx_entry_exe.ps1
+```
+
 ใน GUI มีปุ่ม `Reprocess Dataset` สำหรับ reprocess recycling dataset เก่า:
 
 - เลือก pattern เช่น `ppk_rape` หรือ `all`

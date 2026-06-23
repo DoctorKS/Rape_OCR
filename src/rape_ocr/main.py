@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .api import create_app
 from .config import load_patterns
+from .data_entry_ui import run_data_entry_gui
 from .dataset_reprocess import DatasetReprocessor
 from .ocr_service import OcrService, create_ocr_engine
 from .recycling import RecyclingDataset
@@ -16,6 +17,11 @@ from .ui import run_gui
 def main() -> int:
     parser = argparse.ArgumentParser(description="Rape OCR local application")
     parser.add_argument("--gui", action="store_true", help="start the native desktop app")
+    parser.add_argument(
+        "--data-entry-gui",
+        action="store_true",
+        help="start the standalone i1-i9/R1-R3 DOCX data-entry app",
+    )
     parser.add_argument("--api", action="store_true", help="start the local FastAPI server")
     parser.add_argument("--sample", type=Path, help="process one image using the configured OCR engine")
     parser.add_argument(
@@ -245,6 +251,9 @@ def main() -> int:
                 f"output={item.output_metadata} message={item.message}"
             )
         return 0
+
+    if args.data_entry_gui:
+        return run_data_entry_gui()
 
     if args.gui:
         return run_gui()

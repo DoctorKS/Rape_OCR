@@ -7,6 +7,7 @@ __pycache__/
 venv/
 build/
 dist/
+*.spec
 *.egg-info/
 
 # Local runtime data contains sensitive images, reviewed labels, and exports.

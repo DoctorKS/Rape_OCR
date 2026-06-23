@@ -23,10 +23,12 @@ app = [
     "paddlepaddle==3.2.2",
 ]
 dev = [
+    "pyinstaller>=6.0",
 ]
 
 [project.scripts]
 rape-ocr = "rape_ocr.main:main"
+rape-docx-entry = "rape_ocr.data_entry_ui:run_data_entry_gui"
 
 [tool.setuptools.packages.find]
 where = ["src"]

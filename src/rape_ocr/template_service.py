@@ -85,7 +85,12 @@ class DocxTemplateService:
         if key in values:
             return values[key]
         if re.fullmatch(r"i\d+", key, flags=re.IGNORECASE):
-            return values.get(key.lower()) or values.get(key.upper())
+            lower_key = key.lower()
+            upper_key = key.upper()
+            if lower_key in values:
+                return values[lower_key]
+            if upper_key in values:
+                return values[upper_key]
         return None
 
     @staticmethod
