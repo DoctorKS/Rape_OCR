@@ -70,8 +70,8 @@ class DataEntryUiTest(unittest.TestCase):
         self.assertEqual(format_buddhist_date(23, 6, 2026), "23/06/69")
 
     def test_formats_24_hour_time(self):
-        self.assertEqual(format_24_hour_time(0, 5), "00.05")
-        self.assertEqual(format_24_hour_time(23, 59), "23.59")
+        self.assertEqual(format_24_hour_time(0, 5), "00:05 น.")
+        self.assertEqual(format_24_hour_time(23, 59), "23:59 น.")
         self.assertEqual(format_24_hour_time(None, 30), "")
         with self.assertRaises(ValueError):
             format_24_hour_time(24, 0)

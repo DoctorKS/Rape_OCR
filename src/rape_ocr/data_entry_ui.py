@@ -73,7 +73,7 @@ def format_24_hour_time(hour: int | None, minute: int | None) -> str:
         return ""
     if not 0 <= hour <= 23 or not 0 <= minute <= 59:
         raise ValueError("Hour must be 00-23 and minute must be 00-59")
-    return f"{hour:02d}.{minute:02d}"
+    return f"{hour:02d}:{minute:02d} น."
 
 
 def current_buddhist_year_short(today: date | None = None) -> int:
