@@ -2,6 +2,7 @@ import tempfile
 import unittest
 import zipfile
 import re
+from datetime import date
 from pathlib import Path
 
 from rape_ocr.data_entry_ui import (
@@ -9,10 +10,14 @@ from rape_ocr.data_entry_ui import (
     FIELD_LABELS,
     HOSPITAL_OPTIONS,
     RESULT_OPTIONS,
+    current_buddhist_year_short,
     format_24_hour_time,
     format_buddhist_date,
+    format_lab_number,
     generate_entry_docx,
+    lab_year_options,
     normalize_entry_values,
+    suggested_output_path,
 )
 
 
@@ -45,7 +50,7 @@ class DataEntryUiTest(unittest.TestCase):
         self.assertEqual(values["R3"], "")
 
     def test_field_labels_match_document_terms(self):
-        self.assertEqual(FIELD_LABELS["i1"], "Lab No")
+        self.assertEqual(FIELD_LABELS["i1"], "Lab No.")
         self.assertEqual(FIELD_LABELS["i5"], "Hospital")
         self.assertEqual(FIELD_LABELS["i8"], "Received date")
         self.assertEqual(FIELD_LABELS["i9"], "Reported Date")
@@ -70,6 +75,19 @@ class DataEntryUiTest(unittest.TestCase):
         self.assertEqual(format_24_hour_time(None, 30), "")
         with self.assertRaises(ValueError):
             format_24_hour_time(24, 0)
+
+    def test_lab_number_uses_current_buddhist_year_first(self):
+        self.assertEqual(current_buddhist_year_short(date(2026, 6, 23)), 69)
+        options = lab_year_options(69)
+        self.assertEqual(options[0], "69")
+        self.assertEqual(options[-1], "99")
+        self.assertEqual(len(options), 31)
+
+    def test_formats_lab_number_and_suggested_filename(self):
+        lab_number = format_lab_number("049", "69")
+
+        self.assertEqual(lab_number, "S049/69")
+        self.assertEqual(suggested_output_path({"i1": lab_number}).name, "S049-69.docx")
 
     def test_generates_real_prototype_with_all_tokens_replaced(self):
         template_path = Path("docs/example/prototype.docx")

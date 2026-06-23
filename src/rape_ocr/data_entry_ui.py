@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 
 from .template_service import DocxTemplateService
@@ -13,7 +14,7 @@ DEFAULT_TEMPLATE_PATH = BUNDLE_ROOT / "docs" / "example" / "prototype.docx"
 DEFAULT_OUTPUT_PATH = Path.home() / "Documents" / "generated.docx"
 ENTRY_KEYS = tuple([f"i{index}" for index in range(1, 10)] + [f"R{index}" for index in range(1, 4)])
 FIELD_LABELS = {
-    "i1": "Lab No",
+    "i1": "Lab No.",
     "i2": "Name",
     "i3": "Age",
     "i4": "HN",
@@ -75,6 +76,35 @@ def format_24_hour_time(hour: int | None, minute: int | None) -> str:
     return f"{hour:02d}.{minute:02d}"
 
 
+def current_buddhist_year_short(today: date | None = None) -> int:
+    selected_date = today or date.today()
+    return (selected_date.year + 543) % 100
+
+
+def lab_year_options(current_year: int | None = None) -> tuple[str, ...]:
+    selected_year = current_buddhist_year_short() if current_year is None else current_year
+    available_years = list(range(69, 100))
+    ordered_years = (
+        [selected_year, *[year for year in available_years if year != selected_year]]
+        if selected_year in available_years
+        else available_years
+    )
+    return tuple(f"{year:02d}" for year in ordered_years)
+
+
+def format_lab_number(number: str, buddhist_year: str) -> str:
+    digits = "".join(character for character in number.strip() if character.isdigit())
+    if not digits:
+        return ""
+    return f"S{digits}/{buddhist_year}"
+
+
+def suggested_output_path(values: dict[str, str]) -> Path:
+    lab_number = values.get("i1", "").strip()
+    filename = f"{lab_number.replace('/', '-')}.docx" if lab_number else DEFAULT_OUTPUT_PATH.name
+    return DEFAULT_OUTPUT_PATH.with_name(filename)
+
+
 def normalize_entry_values(values: dict[str, str]) -> dict[str, str]:
     return {key: str(values.get(key, "")).strip() for key in ENTRY_KEYS}
 
@@ -95,7 +125,8 @@ def generate_entry_docx(
 
 def run_data_entry_gui() -> int:
     try:
-        from PySide6.QtCore import QDate, QEvent, QLocale, Qt
+        from PySide6.QtCore import QDate, QEvent, QLocale, QRegularExpression, Qt
+        from PySide6.QtGui import QRegularExpressionValidator
         from PySide6.QtWidgets import (
             QApplication,
             QCalendarWidget,
@@ -242,6 +273,39 @@ def run_data_entry_gui() -> int:
         def focus_widgets(self) -> list[QWidget]:
             return [self.hour, self.minute]
 
+    class LabNumberField(QWidget):
+        def __init__(self, parent=None) -> None:
+            super().__init__(parent)
+            self.number = QLineEdit()
+            self.number.setPlaceholderText("000")
+            self.number.setMaxLength(3)
+            self.number.setValidator(QRegularExpressionValidator(QRegularExpression(r"\d{0,3}")))
+            self.number.setMinimumHeight(32)
+            self.year = QComboBox()
+            self.year.addItems(lab_year_options())
+            self.year.setMinimumHeight(32)
+
+            layout = QHBoxLayout()
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            layout.addWidget(QLabel("S"))
+            layout.addWidget(self.number)
+            layout.addWidget(QLabel("/"))
+            layout.addWidget(self.year)
+            layout.addStretch()
+            self.setLayout(layout)
+            self.setFocusProxy(self.number)
+
+        def value(self) -> str:
+            return format_lab_number(self.number.text(), self.year.currentText())
+
+        def clear(self) -> None:
+            self.number.clear()
+            self.year.setCurrentIndex(0)
+
+        def focus_widgets(self) -> list[QWidget]:
+            return [self.number, self.year]
+
     class DataEntryWindow(QMainWindow):
         def __init__(self) -> None:
             super().__init__()
@@ -305,6 +369,12 @@ def run_data_entry_gui() -> int:
             self.tab_widgets[0].setFocus()
 
         def create_control(self, key: str) -> QWidget:
+            if key == "i1":
+                control = LabNumberField()
+                self.value_getters[key] = control.value
+                self.clear_actions.append(control.clear)
+                self.tab_widgets.extend(control.focus_widgets())
+                return control
             if key in {"i6", "i8", "i9"}:
                 control = BuddhistDateField()
                 self.value_getters[key] = control.value
@@ -348,10 +418,11 @@ def run_data_entry_gui() -> int:
             self.tab_widgets[0].setFocus()
 
         def save_document(self) -> None:
+            values = self.form_values()
             output_path, _ = QFileDialog.getSaveFileName(
                 self,
                 "Save generated DOCX",
-                str(DEFAULT_OUTPUT_PATH),
+                str(suggested_output_path(values)),
                 "Word documents (*.docx)",
             )
             if not output_path:
@@ -360,7 +431,7 @@ def run_data_entry_gui() -> int:
             if selected_path.suffix.lower() != ".docx":
                 selected_path = selected_path.with_suffix(".docx")
             try:
-                saved_path = generate_entry_docx(selected_path, self.form_values())
+                saved_path = generate_entry_docx(selected_path, values)
             except (FileNotFoundError, ValueError, OSError) as exc:
                 QMessageBox.critical(self, "Generate failed", str(exc))
                 return
