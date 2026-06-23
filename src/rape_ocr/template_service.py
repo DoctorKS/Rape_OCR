@@ -45,6 +45,7 @@ class DocxTemplateService:
 
         document_xml = entries[document_name].decode("utf-8")
         document_xml = self._replace_placeholders(document_xml, values)
+        document_xml = self._replace_result_text_fields(document_xml, values)
         document_xml = self._replace_exact_text_fields(document_xml, values)
         document_xml = self._replace_tagged_content_controls(document_xml, values)
         document_xml = self._replace_date_content_controls(document_xml, date_values)
@@ -124,6 +125,43 @@ class DocxTemplateService:
             replace,
             document_xml,
             flags=re.DOTALL,
+        )
+
+    @staticmethod
+    def _replace_result_text_fields(document_xml: str, values: dict[str, str]) -> str:
+        pattern = re.compile(
+            r"(<w:r(?:\s+[^>]*)?>)"
+            r"((?:(?!</w:r>).)*?<w:t(?:\s+[^>]*)?>)"
+            r"(R\d+)"
+            r"(</w:t>(?:(?!</w:r>).)*?</w:r>)",
+            re.DOTALL,
+        )
+
+        def replace(match: re.Match[str]) -> str:
+            run_start, before_text, key, after_text = match.groups()
+            value = values.get(key)
+            if value is None:
+                return match.group(0)
+            run_xml = f"{run_start}{before_text}{html.escape(value)}{after_text}"
+            return DocxTemplateService._ensure_run_italic(run_xml)
+
+        return pattern.sub(replace, document_xml)
+
+    @staticmethod
+    def _ensure_run_italic(run_xml: str) -> str:
+        run_xml = re.sub(r"<w:i(?:\s+[^>]*)?\s*/>", "", run_xml)
+        if re.search(r"<w:rPr(?:\s+[^>]*)?>", run_xml):
+            return re.sub(
+                r"(<w:rPr(?:\s+[^>]*)?>)",
+                r"\1<w:i/>",
+                run_xml,
+                count=1,
+            )
+        return re.sub(
+            r"(<w:r(?:\s+[^>]*)?>)",
+            r"\1<w:rPr><w:i/></w:rPr>",
+            run_xml,
+            count=1,
         )
 
     @staticmethod

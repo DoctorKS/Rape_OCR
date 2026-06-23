@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 import zipfile
+import re
 from pathlib import Path
 
 from rape_ocr.data_entry_ui import (
@@ -48,6 +49,9 @@ class DataEntryUiTest(unittest.TestCase):
         self.assertEqual(FIELD_LABELS["i5"], "Hospital")
         self.assertEqual(FIELD_LABELS["i8"], "Received date")
         self.assertEqual(FIELD_LABELS["i9"], "Reported Date")
+        self.assertEqual(FIELD_LABELS["R1"], "Vulvar")
+        self.assertEqual(FIELD_LABELS["R2"], "Vaginal")
+        self.assertEqual(FIELD_LABELS["R3"], "Endocervical")
 
     def test_hospital_and_result_options(self):
         self.assertIn("โรงพยาบาลพระปกเกล้า", HOSPITAL_OPTIONS)
@@ -88,6 +92,15 @@ class DataEntryUiTest(unittest.TestCase):
             self.assertNotIn(f">{key.upper()}<", document_xml)
         self.assertIn("value-i1", document_xml)
         self.assertIn("value-R3", document_xml)
+        for key in ("R1", "R2", "R3"):
+            self.assertRegex(
+                document_xml,
+                re.compile(
+                    rf"<w:r[^>]*>.*?<w:rPr>.*?<w:i/>.*?</w:rPr>.*?"
+                    rf"<w:t>value-{key}</w:t>.*?</w:r>",
+                    re.DOTALL,
+                ),
+            )
 
 
 if __name__ == "__main__":

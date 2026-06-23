@@ -22,9 +22,9 @@ FIELD_LABELS = {
     "i7": "Collection time",
     "i8": "Received date",
     "i9": "Reported Date",
-    "R1": "Result 1",
-    "R2": "Result 2",
-    "R3": "Result 3",
+    "R1": "Vulvar",
+    "R2": "Vaginal",
+    "R3": "Endocervical",
 }
 HOSPITAL_OPTIONS = (
     "",

@@ -83,3 +83,38 @@ class TemplateServiceTest(unittest.TestCase):
                 filled = archive.read("word/document.xml").decode("utf-8")
             self.assertIn("18/05/69", filled)
             self.assertNotIn(">I6<", filled)
+
+    def test_result_tokens_are_filled_with_italic_run_formatting(self):
+        import re
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            template_path = tmp_path / "template.docx"
+            output_path = tmp_path / "output.docx"
+            with zipfile.ZipFile(template_path, "w") as archive:
+                archive.writestr("[Content_Types].xml", "")
+                archive.writestr(
+                    "word/document.xml",
+                    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                    "<w:body><w:p><w:r><w:t>R1</w:t></w:r></w:p></w:body></w:document>",
+                )
+
+            DocxTemplateService().fill(
+                template_path,
+                output_path,
+                {"R1": "Absence of spermatozoa"},
+            )
+
+            with zipfile.ZipFile(output_path, "r") as archive:
+                filled = archive.read("word/document.xml").decode("utf-8")
+
+            self.assertRegex(
+                filled,
+                re.compile(
+                    r"<w:r[^>]*>.*?<w:rPr>.*?<w:i/>.*?</w:rPr>.*?"
+                    r"<w:t>Absence of spermatozoa</w:t>.*?</w:r>",
+                    re.DOTALL,
+                ),
+            )
